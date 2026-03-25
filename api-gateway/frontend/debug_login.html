@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Debug</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .login-form { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #007bff; }
+        .log-output { height: 400px; overflow-y: auto; background: #1e1e1e; color: #7dd3fc; padding: 10px; border-radius: 4px; font-size: 12px; font-family: 'Courier New', monospace; }
+        .log-line { margin: 2px 0; }
+        .log-error { color: #ff6b6b; }
+        .log-success { color: #51cf66; }
+        .log-info { color: #74c0fc; }
+        .log-warn { color: #ffd43b; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; }
+        button:hover { background: #007bff; color: white; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Login Flow Debug Console</h1>
+        
+        <div class="status" id="status">Loading...</div>
+        
+        <div class="login-form">
+            <h3>Manual Login Test</h3>
+            <input type="text" id="username" value="customer01" placeholder="Username">
+            <input type="password" id="password" value="customer123" placeholder="Password">
+            <button onclick="manualLogin()">Test Login</button>
+        </div>
+        
+        <h3>Console Output:</h3>
+        <div class="log-output" id="logOutput"></div>
+    </div>
+
+    <script>
+        const logs = [];
+        
+        function formatLog(level, msg) {
+            const time = new Date().toLocaleTimeString();
+            const levelStr = level.toUpperCase().padEnd(7);
+            let color = 'log-info';
+            if (level === 'error') color = 'log-error';
+            if (level === 'success') color = 'log-success';
+            if (level === 'warn') color = 'log-warn';
+            return `<div class="log-line ${color}">[${time}] [${levelStr}] ${msg}</div>`;
+        }
+        
+        function log(msg, level = 'info') {
+            const logLine = formatLog(level, msg);
+            logs.push(logLine);
+            const output = document.getElementById('logOutput');
+            output.insertAdjacentHTML('beforeend', logLine);
+            output.scrollTop = output.scrollHeight;
+            console.log(`[${level.toUpperCase()}] ${msg}`);
+        }
+        
+        // Intercept fetch
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            log(`⬆️ Fetch: ${options.method || 'GET'} ${url}`, 'info');
+            
+            return originalFetch.apply(this, args)
+                .then(response => {
+                    log(`⬇️ Response: ${response.status} from ${url}`, response.ok ? 'success' : 'error');
+                    return response;
+                })
+                .catch(error => {
+                    log(`❌ Fetch Error: ${error.message} for ${url}`, 'error');
+                    throw error;
+                });
+        };
+        
+        async function checkApiHealth() {
+            log("Checking API health...", 'info');
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                log(`API gateway response: ${response.status}`, 'success');
+            } catch (e) {
+                log(`Cannot reach API: ${e.message}`, 'error');
+            }
+        }
+        
+        async function manualLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log(`\n=== LOGIN ATTEMPT ===`, 'info');
+            log(`Username: ${username}`, 'info');
+            log(`Password: ${'*'.repeat(password.length)}`, 'info');
+            
+            try {
+                // Step 1: Login
+                log("Step 1: Sending login request...", 'info');
+                const loginResp = await fetch('http://localhost:8000/api/customers/login/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                log(`Login response status: ${loginResp.status}`, loginResp.ok ? 'success' : 'error');
+                
+                const loginData = await loginResp.json();
+                log(`Response keys: ${Object.keys(loginData).join(', ')}`, 'info');
+                
+                if (!loginResp.ok) {
+                    log(`Login failed: ${JSON.stringify(loginData)}`, 'error');
+                    document.getElementById('status').className = 'status error';
+                    document.getElementById('status').innerHTML = `❌ Login Failed: ${loginData.non_field_errors?.[0] || 'Unknown error'}`;
+                    return;
+                }
+                
+                const token = loginData.data?.access;
+                const customer = loginData.data?.customer;
+                
+                if (!token) {
+                    log("No access token in response!", 'error');
+                    return;
+                }
+                
+                log(`✓ Got token: ${token.substring(0, 30)}...`, 'success');
+                log(`✓ Customer: ${customer.full_name} (${customer.username})`, 'success');
+                
+                // Step 2: Ensure cart
+                log("\nStep 2: Creating/ensuring cart...", 'info');
+                const cartResp = await fetch('http://localhost:8000/api/customers/cart/', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                log(`Cart response: ${cartResp.status}`, cartResp.ok ? 'success' : 'warn');
+                
+                // Step 3: Get cart summary
+                log("\nStep 3: Fetching cart summary...", 'info');
+                const summaryResp = await fetch('http://localhost:8000/api/customers/cart/summary/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const summaryData = await summaryResp.json();
+                log(`Cart summary: ${summaryResp.status}`, summaryResp.ok ? 'success' : 'error');
+                log(`Total items: ${summaryData.data?.total_items || 0}`, 'info');
+                
+                // Step 4: Get products
+                log("\nStep 4: Fetching products...", 'info');
+                const productsResp = await fetch('http://localhost:8000/api/customers/laptops/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const productsData = await productsResp.json();
+                log(`Products: ${productsResp.status}`, productsResp.ok ? 'success' : 'error');
+                
+                if (productsData.data && productsData.data.length > 0) {
+                    log(`Found ${productsData.data.length} products`, 'success');
+                }
+                
+                log(`\n✓✓✓ LOGIN FLOW COMPLETE ✓✓✓`, 'success');
+                document.getElementById('status').className = 'status ok';
+                document.getElementById('status').innerHTML = `✓ Login successful for ${customer.username}. Check console logs above.`;
+                
+            } catch (error) {
+                log(`Uncaught error: ${error.message}`, 'error');
+                log(error.stack, 'error');
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', function() {
+            log("Page loaded, checking API connection...", 'info');
+            checkApiHealth();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: GET /api/customers/cart/summary/
+Gateway -> CustomerService: GET /customers/cart/summary/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> CustomerDB: Load cart and cart_items
+CustomerDB --> CustomerService: Cart data
+CustomerService -> CustomerService: Calculate total amount
+CustomerService --> Gateway: Summary response
+Gateway --> Customer: Cart summary
+@enduml

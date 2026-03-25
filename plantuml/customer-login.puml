@@ -1,0 +1,13 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/login/
+Gateway -> CustomerService: POST /customers/login/
+CustomerService -> CustomerDB: Verify username/password
+CustomerDB --> CustomerService: Customer account
+CustomerService --> Gateway: JWT access/refresh
+Gateway --> Customer: Login response
+@enduml

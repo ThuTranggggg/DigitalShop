@@ -1,0 +1,17 @@
+@startuml
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "mobile-service" as MobileService
+database "PostgreSQL Mobile DB" as MobileDB
+
+Staff -> Gateway: POST /api/staff/mobiles/
+Gateway -> StaffService: POST /staff/mobiles/
+StaffService -> StaffService: Validate JWT staff
+StaffService -> MobileService: POST /mobiles/
+MobileService -> MobileDB: Insert mobile
+MobileDB --> MobileService: Mobile row
+MobileService --> StaffService: Created mobile
+StaffService --> Gateway: Success response
+Gateway --> Staff: Mobile created
+@enduml

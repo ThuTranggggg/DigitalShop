@@ -1,0 +1,20 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "mobile-service" as MobileService
+database "PostgreSQL Mobile DB" as MobileDB
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/cart/items/
+Gateway -> CustomerService: POST /customers/cart/items/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> MobileService: GET /mobiles/{id}/
+MobileService -> MobileDB: Check product, price, stock
+MobileDB --> MobileService: Mobile detail
+MobileService --> CustomerService: Mobile detail
+CustomerService -> CustomerDB: Save cart item snapshot
+CustomerDB --> CustomerService: Cart item row
+CustomerService --> Gateway: Add item success
+Gateway --> Customer: Cart item created
+@enduml

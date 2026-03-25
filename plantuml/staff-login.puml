@@ -1,0 +1,13 @@
+@startuml
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+database "MySQL Staff DB" as StaffDB
+
+Staff -> Gateway: POST /api/staff/login/
+Gateway -> StaffService: POST /staff/login/
+StaffService -> StaffDB: Verify username/password
+StaffDB --> StaffService: Staff account
+StaffService --> Gateway: JWT access/refresh
+Gateway --> Staff: Login response
+@enduml

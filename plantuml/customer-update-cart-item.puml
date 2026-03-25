@@ -1,0 +1,20 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "product-service" as ProductService
+database "Product DB" as ProductDB
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: PUT /api/customers/cart/items/{id}/
+Gateway -> CustomerService: PUT /customers/cart/items/{id}/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> ProductService: GET current product detail
+ProductService -> ProductDB: Check stock
+ProductDB --> ProductService: Product stock
+ProductService --> CustomerService: Product detail
+CustomerService -> CustomerDB: Update quantity/subtotal
+CustomerDB --> CustomerService: Updated cart item
+CustomerService --> Gateway: Update success
+Gateway --> Customer: Cart item updated
+@enduml

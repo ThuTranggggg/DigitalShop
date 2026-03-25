@@ -1,0 +1,17 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "mobile-service" as MobileService
+database "PostgreSQL Mobile DB" as MobileDB
+
+Customer -> Gateway: GET /api/customers/mobiles/
+Gateway -> CustomerService: GET /customers/mobiles/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> MobileService: GET /mobiles/
+MobileService -> MobileDB: Query mobiles
+MobileDB --> MobileService: Mobile list
+MobileService --> CustomerService: Mobile list
+CustomerService --> Gateway: Response JSON
+Gateway --> Customer: Mobile list
+@enduml

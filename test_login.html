@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login Test</title>
+</head>
+<body>
+  <h1>Testing Login</h1>
+  <pre id="result"></pre>
+  
+  <script>
+    async function testLogin() {
+      try {
+        console.log('Starting test...');
+        const response = await fetch('http://localhost:8000/api/customers/login/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: 'customer01',
+            password: 'customer123'
+          })
+        });
+        
+        console.log('Response status:', response.status);
+        const payload = await response.json();
+        console.log('Response payload:', payload);
+        
+        document.getElementById('result').textContent = JSON.stringify(payload, null, 2);
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('result').textContent = 'Error: ' + error.message;
+      }
+    }
+    
+    testLogin();
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "laptop-service" as LaptopService
+database "PostgreSQL Laptop DB" as LaptopDB
+
+Customer -> Gateway: GET /api/customers/laptops/search/
+Gateway -> CustomerService: GET /customers/laptops/search/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> LaptopService: GET /laptops/search/
+LaptopService -> LaptopDB: Filter by q/brand/price
+LaptopDB --> LaptopService: Search result
+LaptopService --> CustomerService: Result set
+CustomerService --> Gateway: Response JSON
+Gateway --> Customer: Search result
+@enduml

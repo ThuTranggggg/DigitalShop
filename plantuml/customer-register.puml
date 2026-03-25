@@ -1,0 +1,13 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/register/
+Gateway -> CustomerService: POST /customers/register/
+CustomerService -> CustomerDB: Insert customer
+CustomerDB --> CustomerService: Customer created
+CustomerService --> Gateway: Register success
+Gateway --> Customer: Response JSON
+@enduml

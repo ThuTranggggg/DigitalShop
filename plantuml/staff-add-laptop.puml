@@ -1,0 +1,17 @@
+@startuml
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+database "PostgreSQL Laptop DB" as LaptopDB
+
+Staff -> Gateway: POST /api/staff/laptops/
+Gateway -> StaffService: POST /staff/laptops/
+StaffService -> StaffService: Validate JWT staff
+StaffService -> LaptopService: POST /laptops/
+LaptopService -> LaptopDB: Insert laptop
+LaptopDB --> LaptopService: Laptop row
+LaptopService --> StaffService: Created laptop
+StaffService --> Gateway: Success response
+Gateway --> Staff: Laptop created
+@enduml

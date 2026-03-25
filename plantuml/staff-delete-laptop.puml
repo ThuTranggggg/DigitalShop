@@ -1,0 +1,17 @@
+@startuml
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+database "PostgreSQL Laptop DB" as LaptopDB
+
+Staff -> Gateway: DELETE /api/staff/laptops/{id}/
+Gateway -> StaffService: DELETE /staff/laptops/{id}/
+StaffService -> StaffService: Validate JWT staff
+StaffService -> LaptopService: DELETE /laptops/{id}/
+LaptopService -> LaptopDB: Delete laptop
+LaptopDB --> LaptopService: Delete success
+LaptopService --> StaffService: Success
+StaffService --> Gateway: Success response
+Gateway --> Staff: Laptop deleted
+@enduml

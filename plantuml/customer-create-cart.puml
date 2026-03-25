@@ -1,0 +1,14 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/cart/
+Gateway -> CustomerService: POST /customers/cart/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> CustomerDB: Create or get cart
+CustomerDB --> CustomerService: Cart record
+CustomerService --> Gateway: Cart response
+Gateway --> Customer: Cart created/ready
+@enduml

@@ -1,0 +1,14 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: DELETE /api/customers/cart/items/{id}/
+Gateway -> CustomerService: DELETE /customers/cart/items/{id}/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> CustomerDB: Delete cart item
+CustomerDB --> CustomerService: Delete success
+CustomerService --> Gateway: Response JSON
+Gateway --> Customer: Item removed
+@enduml

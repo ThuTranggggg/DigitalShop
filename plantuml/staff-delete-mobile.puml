@@ -1,0 +1,17 @@
+@startuml
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "mobile-service" as MobileService
+database "PostgreSQL Mobile DB" as MobileDB
+
+Staff -> Gateway: DELETE /api/staff/mobiles/{id}/
+Gateway -> StaffService: DELETE /staff/mobiles/{id}/
+StaffService -> StaffService: Validate JWT staff
+StaffService -> MobileService: DELETE /mobiles/{id}/
+MobileService -> MobileDB: Delete mobile
+MobileDB --> MobileService: Delete success
+MobileService --> StaffService: Success
+StaffService --> Gateway: Success response
+Gateway --> Staff: Mobile deleted
+@enduml

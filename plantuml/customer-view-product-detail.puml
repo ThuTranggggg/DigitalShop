@@ -1,0 +1,17 @@
+@startuml
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "product-service" as ProductService
+database "Product DB" as ProductDB
+
+Customer -> Gateway: GET product detail
+Gateway -> CustomerService: GET /customers/{type}/{id}/
+CustomerService -> CustomerService: Validate JWT customer
+CustomerService -> ProductService: GET /{type}/{id}/
+ProductService -> ProductDB: Query product by id
+ProductDB --> ProductService: Product row
+ProductService --> CustomerService: Product detail
+CustomerService --> Gateway: Response JSON
+Gateway --> Customer: Product detail
+@enduml
