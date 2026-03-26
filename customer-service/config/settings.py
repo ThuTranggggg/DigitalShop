@@ -99,5 +99,6 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 LAPTOP_SERVICE_URL = os.getenv("LAPTOP_SERVICE_URL", "http://localhost:8003")
-MOBILE_SERVICE_URL = os.getenv("MOBILE_SERVICE_URL", "http://localhost:8004")
+CLOTHES_SERVICE_URL = os.getenv("CLOTHES_SERVICE_URL", "http://localhost:8004")
+CART_SERVICE_URL = os.getenv("CART_SERVICE_URL", "http://localhost:8005")
 SERVICE_TIMEOUT = int(os.getenv("SERVICE_TIMEOUT", "10"))

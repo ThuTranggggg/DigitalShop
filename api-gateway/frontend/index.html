@@ -6,285 +6,531 @@
     <title>DigitalShop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-    <div class="page-orb orb-one"></div>
-    <div class="page-orb orb-two"></div>
+<body class="theme-public">
     <div class="app-shell">
         <header class="site-header">
             <a class="brand" href="#/">
-                <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" role="img">
-                        <rect x="3.5" y="6.5" width="8" height="6" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-                        <rect x="12.5" y="9.5" width="8" height="6" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-                        <path d="M11.5 10.5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                    </svg>
-                </span>
-                <span>
+                <span class="brand-mark" aria-hidden="true">DS</span>
+                <span class="brand-copy">
                     <strong>DigitalShop</strong>
-                    <small>Hệ thống bán thiết bị công nghệ</small>
+                    <small>Microservice Ecommerce Demo</small>
                 </span>
             </a>
 
             <nav class="site-nav">
-                <a class="nav-item" href="#/">Trang chủ</a>
-                <a class="nav-item" href="#/shop">Khu khách hàng</a>
-                <a class="nav-item" href="#/admin">Khu nhân viên</a>
+                <a class="nav-link" data-nav-route="#/" href="#/">Trang chủ</a>
+                <a class="nav-link" data-nav-route="#/customer-login" href="#/customer-login">Customer</a>
+                <a class="nav-link" data-nav-route="#/shop" href="#/shop">Cửa hàng</a>
+                <a class="nav-link" data-nav-route="#/staff-login" href="#/staff-login">Staff</a>
+                <a class="nav-link" data-nav-route="#/admin" href="#/admin">Quản trị</a>
             </nav>
 
-            <div class="header-status" id="header-status">Chưa đăng nhập</div>
+            <div class="header-status-card">
+                <span id="header-status-label">Guest Area</span>
+                <strong id="header-status-value">Chưa đăng nhập</strong>
+            </div>
         </header>
 
         <main id="landing-view" class="route-view">
-            <section class="landing-home">
-                <div class="landing-login-grid">
-                    <article class="landing-login-card customer-card">
-                        <p class="landing-pill">KHÁCH HÀNG</p>
-                        <form class="stack-form landing-form" id="customer-login-form">
-                            <h1>Đăng nhập mua sắm</h1>
-                            <label>
-                                <span>TÊN ĐĂNG NHẬP</span>
-                                <input type="text" name="username" value="customer01" required>
-                            </label>
-                            <label>
-                                <span>MẬT KHẨU</span>
-                                <input type="password" name="password" value="customer123" required>
-                            </label>
-                            <button class="primary-button landing-submit" type="submit">Đăng nhập</button>
-                        </form>
+            <section class="landing-hero">
+                <div class="landing-copy">
+                    <p class="eyebrow">DigitalShop storefront</p>
+                    <h1>Hai cổng truy cập tách biệt cho mua sắm và quản trị.</h1>
+                    <p class="lead">
+                        Customer đi vào khu mua hàng riêng. Staff đi vào portal quản trị riêng.
+                        Toan bo du lieu duoc tach service va database theo kien truc microservice.
+                    </p>
+                    <div class="landing-actions">
+                        <a class="primary-button" href="#/customer-login">Vao khu mua sam</a>
+                        <a class="secondary-button" href="#/staff-login">Vao staff portal</a>
+                    </div>
+                    <div class="hero-metrics">
+                        <article class="metric-card">
+                            <strong>5</strong>
+                            <span>Microservice backend</span>
+                        </article>
+                        <article class="metric-card">
+                            <strong>2</strong>
+                            <span>Khu giao dien tach biet</span>
+                        </article>
+                        <article class="metric-card">
+                            <strong>Docker</strong>
+                            <span>Van hanh thong nhat</span>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="entry-grid">
+                    <article class="entry-card customer-entry">
+                        <p class="entry-tag">Customer portal</p>
+                        <h2>Trai nghiem mua sam</h2>
+                        <p>
+                            Danh sach san pham, gio hang, checkout va lich su hoa don duoc gom trong
+                            mot khong gian danh rieng cho khach hang.
+                        </p>
+                        <ul class="feature-list">
+                            <li>Dang nhap customer rieng</li>
+                            <li>Xem laptop va clothes theo danh muc</li>
+                            <li>Quan ly gio hang va thanh toan</li>
+                            <li>Xem lai hoa don da tao</li>
+                        </ul>
+                        <div class="entry-footer">
+                            <div class="demo-inline">
+                                <span>Demo:</span>
+                                <strong>customer01 / customer123</strong>
+                            </div>
+                            <a class="primary-button" href="#/customer-login">Dang nhap customer</a>
+                        </div>
                     </article>
 
-                    <article class="landing-login-card staff-card">
-                        <p class="landing-pill">NHÂN VIÊN</p>
-                        <form class="stack-form landing-form" id="staff-login-form">
-                            <h1>Đăng nhập quản trị</h1>
-                            <label>
-                                <span>TÊN ĐĂNG NHẬP</span>
-                                <input type="text" name="username" value="admin" required>
-                            </label>
-                            <label>
-                                <span>MẬT KHẨU</span>
-                                <input type="password" name="password" value="admin123" required>
-                            </label>
-                            <button class="primary-button landing-submit" type="submit">Đăng nhập</button>
-                        </form>
+                    <article class="entry-card staff-entry">
+                        <p class="entry-tag">Staff portal</p>
+                        <h2>Dashboard quan tri</h2>
+                        <p>
+                            Staff thao tac tren mot khu vuc rieng de quan ly san pham, theo doi ton kho
+                            va nhap hang ma khong lan voi giao dien customer.
+                        </p>
+                        <ul class="feature-list">
+                            <li>Dang nhap staff rieng</li>
+                            <li>Them, sua, xoa laptop va clothes</li>
+                            <li>Nhap hang va xem lich su import</li>
+                            <li>Dashboard thong ke ton kho</li>
+                        </ul>
+                        <div class="entry-footer">
+                            <div class="demo-inline">
+                                <span>Demo:</span>
+                                <strong>admin / admin123</strong>
+                            </div>
+                            <a class="secondary-button staff-button" href="#/staff-login">Dang nhap staff</a>
+                        </div>
                     </article>
                 </div>
+            </section>
+        </main>
+
+        <main id="customer-login-view" class="route-view hidden">
+            <section class="auth-layout customer-auth-layout">
+                <aside class="auth-side customer-auth-side">
+                    <p class="eyebrow">Customer area</p>
+                    <h1>Dang nhap de bat dau mua sam.</h1>
+                    <p class="lead">
+                        Khu nay danh rieng cho customer. Sau khi dang nhap, ban se duoc dua vao storefront,
+                        gio hang, checkout va lich su hoa don.
+                    </p>
+                    <div class="auth-side-card">
+                        <p><strong>Tai khoan demo</strong></p>
+                        <p>customer01 / customer123</p>
+                        <p>customer02 / customer123</p>
+                    </div>
+                    <div class="auth-side-links">
+                        <a class="secondary-button" href="#/">Ve trang chu</a>
+                        <a class="ghost-button" href="#/shop">Mo cua hang</a>
+                    </div>
+                </aside>
+
+                <section class="auth-panel customer-auth-panel">
+                    <p class="panel-kicker">Customer login</p>
+                    <h2>Truy cap khu mua hang</h2>
+                    <p class="panel-copy">Khach hang dang nhap tai day. Giao dien staff duoc tach hoan toan o portal khac.</p>
+                    <form class="stack-form" id="customer-login-form">
+                        <label>
+                            <span>Ten dang nhap</span>
+                            <input type="text" name="username" value="customer01" required>
+                        </label>
+                        <label>
+                            <span>Mat khau</span>
+                            <input type="password" name="password" value="customer123" required>
+                        </label>
+                        <button class="primary-button full-width" type="submit">Dang nhap customer</button>
+                    </form>
+                </section>
             </section>
         </main>
 
         <main id="shop-view" class="route-view hidden">
-            <section class="panel auth-gate auth-empty-state auth-empty-state-customer" id="customer-auth-panel">
-                <div class="auth-gate-copy auth-empty-copy auth-empty-copy-simple">
-                    <h2>Đăng nhập để bắt đầu mua sắm</h2>
-                    <div class="auth-empty-actions">
-                        <a class="primary-button auth-empty-button" href="#/">Về trang chủ để đăng nhập</a>
-                    </div>
+            <section class="workspace-banner customer-banner">
+                <div>
+                    <p class="eyebrow">Customer storefront</p>
+                    <h2>Mua sam theo danh muc san pham</h2>
+                    <p id="customer-summary-text">
+                        San pham duoc tong hop tu laptop-service va clothes-service cho khu mua hang.
+                    </p>
+                </div>
+                <div class="workspace-meta-card">
+                    <span>Khach hang hien tai</span>
+                    <strong id="customer-profile-line">Chua dang nhap</strong>
+                    <button class="ghost-button" id="customer-logout" type="button">Dang xuat</button>
                 </div>
             </section>
 
-            <section class="dashboard-header panel shop-toolbar">
-                <div class="shop-toolbar-tabs">
-                    <div class="segmented-tabs compact-tabs shop-customer-tabs">
-                        <button class="segment active" data-customer-type="laptop">Laptop</button>
-                        <button class="segment" data-customer-type="mobile">Mobile</button>
-                    </div>
-                    <button class="primary-button shop-cart-button" id="mini-cart-button">Xem giỏ hàng</button>
-                </div>
-                <div class="shop-toolbar-user">
-                    <div class="account-avatar shop-account-avatar" id="customer-avatar">NV</div>
-                    <strong id="customer-profile-name">Nguyen Van A</strong>
-                    <button class="ghost-button shop-logout-button" id="customer-logout">Đăng xuất</button>
-                </div>
-            </section>
+            <nav class="workspace-nav customer-workspace-nav">
+                <a class="workspace-link" data-customer-route="#/shop" href="#/shop">Cua hang</a>
+                <a class="workspace-link" data-customer-route="#/cart" href="#/cart">Gio hang</a>
+                <a class="workspace-link" data-customer-route="#/checkout" href="#/checkout">Checkout</a>
+                <a class="workspace-link" data-customer-route="#/invoices" href="#/invoices">Hoa don</a>
+            </nav>
 
-            <section class="shop-layout">
-                <section class="panel shop-main">
+            <section class="customer-layout">
+                <aside class="panel customer-sidebar">
+                    <div class="sidebar-block">
+                        <p class="panel-kicker">Danh muc</p>
+                        <div class="segmented-stack">
+                            <button class="segment active" data-customer-type="laptop" type="button">Laptop</button>
+                            <button class="segment" data-customer-type="clothes" type="button">Clothes</button>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-block">
+                        <p class="panel-kicker">Tong quan gio hang</p>
+                        <div class="sidebar-stat-box" id="customer-mini-cart">
+                            <strong>0 san pham</strong>
+                            <span>Chua co du lieu gio hang.</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-block">
+                        <p class="panel-kicker">Tac vu nhanh</p>
+                        <div class="quick-link-stack">
+                            <a class="secondary-button full-width" href="#/cart">Mo gio hang</a>
+                            <a class="secondary-button full-width" href="#/invoices">Xem hoa don</a>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="panel workspace-main">
                     <div class="section-head-inline">
                         <div>
-                            <p class="section-kicker">Tìm kiếm sản phẩm</p>
-                            <h3>Danh sách sản phẩm</h3>
+                            <p class="panel-kicker">Danh sach san pham</p>
+                            <h3 id="customer-active-category-label">Laptop</h3>
                         </div>
                         <div class="toolbar-meta-card">
-                            <strong id="customer-toolbar-result">0 kết quả</strong>
-                            <span>Lọc theo nhu cầu và thêm ngay vào giỏ hàng.</span>
+                            <strong id="customer-product-count">0 san pham</strong>
+                            <span id="customer-active-helper">Tim kiem va them san pham vao gio hang.</span>
                         </div>
                     </div>
 
                     <form class="catalog-toolbar" id="customer-search-form">
-                        <input type="text" name="q" placeholder="Tìm theo tên, CPU, chip, camera...">
-                        <input type="text" name="brand" placeholder="Thương hiệu">
-                        <input type="number" name="min_price" placeholder="Giá từ">
-                        <input type="number" name="max_price" placeholder="Giá đến">
-                        <button class="primary-button" type="submit">Tìm kiếm</button>
-                        <button class="secondary-button" type="button" id="customer-search-reset">Đặt lại</button>
+                        <input type="text" name="q" placeholder="Tim theo ten hoac dac tinh">
+                        <input type="text" name="brand" placeholder="Thuong hieu">
+                        <input type="number" name="min_price" placeholder="Gia tu">
+                        <input type="number" name="max_price" placeholder="Gia den">
+                        <button class="primary-button" type="submit">Tim kiem</button>
+                        <button class="secondary-button" type="button" id="customer-search-reset">Dat lai</button>
                     </form>
 
-                    <div id="catalog-skeleton" class="catalog-grid hidden"></div>
                     <div id="customer-product-grid" class="catalog-grid"></div>
-                </section>
-
-                <div class="hidden" id="customer-register-block">
-                    <form class="stack-form" id="customer-register-form">
-                        <label>Họ và tên<input type="text" name="full_name" required></label>
-                        <label>Tên đăng nhập<input type="text" name="username" required></label>
-                        <label>Email<input type="email" name="email" required></label>
-                        <label>Số điện thoại<input type="text" name="phone" required></label>
-                        <label>Mật khẩu<input type="password" name="password" required></label>
-                        <button class="secondary-button full-width" type="submit">Đăng ký tài khoản</button>
-                    </form>
-                </div>
-            </section>
-        </main>
-
-        <main id="admin-view" class="route-view hidden">
-            <section class="panel auth-gate auth-gate-admin auth-empty-state auth-empty-state-admin" id="staff-auth-panel">
-                <div class="auth-empty-icon auth-empty-icon-admin" aria-hidden="true">NV</div>
-                <div class="auth-gate-copy auth-empty-copy auth-empty-copy-simple">
-                    <p class="section-kicker">Khu nhân viên</p>
-                    <h2>Đăng nhập để mở dashboard quản trị</h2>
-                    <div class="auth-empty-actions">
-                        <a class="primary-button auth-empty-button" href="#/">Về trang chủ để đăng nhập</a>
-                    </div>
-                </div>
-            </section>
-
-            <section class="dashboard-header panel admin-header">
-                <div>
-                    <p class="section-kicker">Nhân viên</p>
-                    <h2>Dashboard quản trị sản phẩm</h2>
-                    <p class="dashboard-text">Quản lý danh mục, chỉnh sửa dữ liệu và theo dõi tồn kho trong một không gian rõ ràng hơn.</p>
-                </div>
-                <div class="dashboard-actions">
-                    <div class="status-badge" id="staff-profile-name">Chưa đăng nhập</div>
-                    <button class="ghost-button light-ghost" id="staff-logout">Đăng xuất</button>
-                </div>
-            </section>
-
-            <section class="admin-overview-grid">
-                <article class="overview-card admin-overview-card panel">
-                    <p class="section-kicker">Danh mục đang sửa</p>
-                    <strong id="staff-active-category">Laptop</strong>
-                    <span>Đổi nhanh giữa laptop và điện thoại để chỉnh sửa đúng loại sản phẩm.</span>
-                </article>
-                <article class="overview-card admin-overview-card panel">
-                    <p class="section-kicker">Tổng dữ liệu</p>
-                    <strong id="staff-summary-total">0 sản phẩm</strong>
-                    <span>Tổng số bản ghi hiện có trên toàn bộ hệ thống sản phẩm.</span>
-                </article>
-                <article class="overview-card admin-overview-card panel">
-                    <p class="section-kicker">Bảng hiện tại</p>
-                    <strong id="staff-visible-count">0 mục</strong>
-                    <span>Số dòng đang hiển thị ở danh mục bạn đang thao tác.</span>
-                </article>
-            </section>
-
-            <section class="admin-layout">
-                <section class="panel admin-panel admin-editor-panel">
-                    <div class="section-head-inline">
-                        <div>
-                            <p class="section-kicker">Trình chỉnh sửa</p>
-                            <h3>Quản lý sản phẩm</h3>
-                            <p class="admin-section-note">Tạo mới hoặc cập nhật thông tin sản phẩm bằng biểu mẫu gọn và dễ rà soát hơn.</p>
-                        </div>
-                        <div class="status-badge light-badge" id="staff-overview-count">0 sản phẩm</div>
-                    </div>
-
-                    <div class="segmented-tabs compact-tabs admin-tabs">
-                        <button class="segment active" data-staff-tab="laptop">Laptop</button>
-                        <button class="segment" data-staff-tab="mobile">Điện thoại</button>
-                    </div>
-
-                    <form class="editor-form" id="staff-product-form">
-                        <input type="hidden" name="id">
-                        <input type="hidden" name="type" value="laptop">
-                        <div class="editor-grid" id="staff-form-fields"></div>
-                        <div class="editor-actions">
-                            <button class="primary-button" type="submit">Lưu sản phẩm</button>
-                            <button class="secondary-button" type="button" id="staff-form-reset">Đặt lại</button>
-                        </div>
-                    </form>
-                </section>
-
-                <section class="panel admin-panel admin-table-panel">
-                    <div class="section-head-inline">
-                        <div>
-                            <p class="section-kicker">Dữ liệu hiện tại</p>
-                            <h3>Bảng tồn kho</h3>
-                            <p class="admin-section-note">Chọn một dòng để sửa nhanh hoặc xoá trực tiếp ngay trên bảng.</p>
-                        </div>
-                    </div>
-
-                    <div class="inventory-table-wrap">
-                        <table class="inventory-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Tên sản phẩm</th>
-                                    <th>Thương hiệu</th>
-                                    <th>Giá</th>
-                                    <th>Tồn kho</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="staff-product-table"></tbody>
-                        </table>
-                    </div>
                 </section>
             </section>
         </main>
 
         <main id="cart-view" class="route-view hidden">
-            <section class="dashboard-header panel">
+            <section class="workspace-banner customer-banner compact-banner">
                 <div>
-                    <p class="section-kicker">Giỏ hàng</p>
-                    <h2>Quản lý đơn hàng của bạn</h2>
-                    <p class="dashboard-text">Theo dõi toàn bộ mặt hàng đã chọn, cập nhật số lượng và kiểm tra tổng tiền trong bố cục dễ nhìn hơn.</p>
+                    <p class="eyebrow">Customer cart</p>
+                    <h2>Gio hang hien tai</h2>
+                    <p>Cap nhat so luong, xoa san pham va chuyen sang checkout khi san sang.</p>
                 </div>
-                <div class="dashboard-actions">
-                    <button class="primary-button" id="cart-checkout-btn">Thanh toán</button>
-                    <a class="secondary-button" href="#/shop">Tiếp tục mua sắm</a>
+                <div class="workspace-inline-actions">
+                    <a class="secondary-button" href="#/shop">Tiep tuc mua</a>
+                    <a class="primary-button" href="#/checkout">Thanh toan</a>
                 </div>
             </section>
 
-            <section class="cart-main-layout">
-                <div class="cart-items-section panel">
+            <nav class="workspace-nav customer-workspace-nav">
+                <a class="workspace-link" data-customer-route="#/shop" href="#/shop">Cua hang</a>
+                <a class="workspace-link" data-customer-route="#/cart" href="#/cart">Gio hang</a>
+                <a class="workspace-link" data-customer-route="#/checkout" href="#/checkout">Checkout</a>
+                <a class="workspace-link" data-customer-route="#/invoices" href="#/invoices">Hoa don</a>
+            </nav>
+
+            <section class="split-layout">
+                <section class="panel">
                     <div class="section-head-inline">
                         <div>
-                            <p class="section-kicker">Danh sách sản phẩm</p>
-                            <h3>Các mặt hàng trong giỏ</h3>
+                            <p class="panel-kicker">Cart items</p>
+                            <h3 id="cart-items-heading">0 san pham</h3>
                         </div>
                     </div>
                     <div class="cart-items-list" id="cart-view-items"></div>
-                </div>
+                </section>
 
-                <aside class="cart-summary-section panel">
+                <aside class="panel">
                     <div class="section-head-inline">
-                        <h3>Tóm tắt đơn hàng</h3>
+                        <div>
+                            <p class="panel-kicker">Tong ket don hang</p>
+                            <h3>Tam tinh</h3>
+                        </div>
                     </div>
-                    <div class="cart-summary-detail" id="cart-view-summary"></div>
+                    <div class="summary-box" id="cart-view-summary"></div>
                 </aside>
+            </section>
+        </main>
+
+        <main id="checkout-view" class="route-view hidden">
+            <section class="workspace-banner customer-banner compact-banner">
+                <div>
+                    <p class="eyebrow">Checkout</p>
+                    <h2>Xac nhan thanh toan</h2>
+                    <p>Don hang se duoc luu thanh hoa don trong customer-service sau khi checkout thanh cong.</p>
+                </div>
+                <div class="workspace-inline-actions">
+                    <a class="secondary-button" href="#/cart">Quay lai gio hang</a>
+                </div>
+            </section>
+
+            <nav class="workspace-nav customer-workspace-nav">
+                <a class="workspace-link" data-customer-route="#/shop" href="#/shop">Cua hang</a>
+                <a class="workspace-link" data-customer-route="#/cart" href="#/cart">Gio hang</a>
+                <a class="workspace-link" data-customer-route="#/checkout" href="#/checkout">Checkout</a>
+                <a class="workspace-link" data-customer-route="#/invoices" href="#/invoices">Hoa don</a>
+            </nav>
+
+            <section class="split-layout">
+                <section class="panel">
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Order review</p>
+                            <h3>San pham sap thanh toan</h3>
+                        </div>
+                    </div>
+                    <div id="checkout-items"></div>
+                </section>
+
+                <section class="panel">
+                    <form class="stack-form" id="checkout-form">
+                        <div class="section-head-inline">
+                            <div>
+                                <p class="panel-kicker">Thong tin hoa don</p>
+                                <h3>Xac nhan don hang</h3>
+                            </div>
+                        </div>
+                        <label>
+                            <span>Ghi chu don hang</span>
+                            <textarea name="note" placeholder="Vi du: giao trong gio hanh chinh"></textarea>
+                        </label>
+                        <div id="checkout-total-box" class="summary-box"></div>
+                        <button class="primary-button" type="submit">Xac nhan checkout</button>
+                    </form>
+                </section>
+            </section>
+        </main>
+
+        <main id="invoices-view" class="route-view hidden">
+            <section class="workspace-banner customer-banner compact-banner">
+                <div>
+                    <p class="eyebrow">Invoice history</p>
+                    <h2>Lich su hoa don</h2>
+                    <p>Xem lai tung hoa don da tao, trang thai va chi tiet thanh toan.</p>
+                </div>
+                <div class="workspace-inline-actions">
+                    <a class="secondary-button" href="#/shop">Tiep tuc mua sam</a>
+                </div>
+            </section>
+
+            <nav class="workspace-nav customer-workspace-nav">
+                <a class="workspace-link" data-customer-route="#/shop" href="#/shop">Cua hang</a>
+                <a class="workspace-link" data-customer-route="#/cart" href="#/cart">Gio hang</a>
+                <a class="workspace-link" data-customer-route="#/checkout" href="#/checkout">Checkout</a>
+                <a class="workspace-link" data-customer-route="#/invoices" href="#/invoices">Hoa don</a>
+            </nav>
+
+            <section class="split-layout invoice-layout">
+                <section class="panel">
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Invoice list</p>
+                            <h3 id="invoice-count">0 hoa don</h3>
+                        </div>
+                    </div>
+                    <div id="invoice-list" class="invoice-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Invoice detail</p>
+                            <h3>Chi tiet hoa don</h3>
+                        </div>
+                    </div>
+                    <div id="invoice-detail" class="invoice-detail"></div>
+                </section>
+            </section>
+        </main>
+
+        <main id="staff-login-view" class="route-view hidden">
+            <section class="auth-layout staff-auth-layout">
+                <aside class="auth-side staff-auth-side">
+                    <p class="eyebrow light-eyebrow">Staff portal</p>
+                    <h1>Dang nhap dashboard quan tri.</h1>
+                    <p class="lead">
+                        Khu nay danh rieng cho staff. Toan bo thao tac CRUD san pham va nhap hang
+                        duoc tach khoi giao dien customer.
+                    </p>
+                    <div class="auth-side-card dark-card">
+                        <p><strong>Tai khoan demo</strong></p>
+                        <p>admin / admin123</p>
+                        <p>staff01 / staff123</p>
+                    </div>
+                    <div class="auth-side-links">
+                        <a class="secondary-button light-button" href="#/">Ve trang chu</a>
+                        <a class="ghost-button light-ghost" href="#/admin">Mo dashboard</a>
+                    </div>
+                </aside>
+
+                <section class="auth-panel staff-auth-panel">
+                    <p class="panel-kicker">Staff login</p>
+                    <h2>Truy cap portal quan tri</h2>
+                    <p class="panel-copy">Day la man hinh dang nhap rieng cho staff, khong dung chung voi khu mua hang.</p>
+                    <form class="stack-form" id="staff-login-form">
+                        <label>
+                            <span>Ten dang nhap</span>
+                            <input type="text" name="username" value="admin" required>
+                        </label>
+                        <label>
+                            <span>Mat khau</span>
+                            <input type="password" name="password" value="admin123" required>
+                        </label>
+                        <button class="primary-button full-width staff-submit" type="submit">Dang nhap staff</button>
+                    </form>
+                </section>
+            </section>
+        </main>
+
+        <main id="admin-view" class="route-view hidden">
+            <section class="workspace-banner staff-banner">
+                <div>
+                    <p class="eyebrow light-eyebrow">Staff dashboard</p>
+                    <h2>Quan ly san pham va ton kho</h2>
+                    <p id="staff-summary-text">
+                        Dashboard staff-service gom CRUD laptop, clothes va lich su nhap hang.
+                    </p>
+                </div>
+                <div class="workspace-meta-card dark-meta-card">
+                    <span>Staff hien tai</span>
+                    <strong id="staff-profile-line">Chua dang nhap</strong>
+                    <button class="ghost-button light-ghost" id="staff-logout" type="button">Dang xuat</button>
+                </div>
+            </section>
+
+            <nav class="workspace-nav staff-workspace-nav">
+                <div class="segmented-row">
+                    <button class="segment active staff-segment" data-staff-type="laptop" type="button">Laptop</button>
+                    <button class="segment staff-segment" data-staff-type="clothes" type="button">Clothes</button>
+                </div>
+                <span class="workspace-note" id="staff-active-label">Dang quan ly laptop</span>
+            </nav>
+
+            <section class="stats-grid">
+                <article class="panel stat-card staff-stat-card">
+                    <p class="panel-kicker">Tong san pham</p>
+                    <strong id="staff-total-products">0</strong>
+                    <span>Tong ban ghi tren product services.</span>
+                </article>
+                <article class="panel stat-card staff-stat-card">
+                    <p class="panel-kicker">Tong ton kho</p>
+                    <strong id="staff-total-stock">0</strong>
+                    <span>Ton kho hop nhat cua laptop va clothes.</span>
+                </article>
+                <article class="panel stat-card staff-stat-card">
+                    <p class="panel-kicker">Lan nhap gan day</p>
+                    <strong id="staff-import-count">0</strong>
+                    <span>So luot import da luu trong staff-service.</span>
+                </article>
+            </section>
+
+            <section class="admin-layout">
+                <section class="panel admin-form-panel">
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Product editor</p>
+                            <h3 id="staff-form-title">Them hoac sua san pham</h3>
+                        </div>
+                    </div>
+                    <form class="stack-form" id="staff-product-form">
+                        <input type="hidden" name="id">
+                        <div class="editor-grid" id="staff-form-fields"></div>
+                        <div class="editor-actions">
+                            <button class="primary-button" type="submit">Luu san pham</button>
+                            <button class="secondary-button" id="staff-form-reset" type="button">Dat lai</button>
+                        </div>
+                    </form>
+
+                    <div class="section-divider"></div>
+
+                    <form class="stack-form" id="staff-import-form">
+                        <div class="section-head-inline">
+                            <div>
+                                <p class="panel-kicker">Inventory import</p>
+                                <h3>Nhap them ton kho</h3>
+                            </div>
+                        </div>
+                        <label>
+                            <span>Loai san pham</span>
+                            <select name="product_type">
+                                <option value="LAPTOP">Laptop</option>
+                                <option value="CLOTHES">Clothes</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>ID san pham</span>
+                            <input type="number" name="product_id" min="1" required>
+                        </label>
+                        <label>
+                            <span>So luong nhap</span>
+                            <input type="number" name="quantity" min="1" value="1" required>
+                        </label>
+                        <label>
+                            <span>Ghi chu</span>
+                            <textarea name="note" placeholder="Vi du: nhap them lo hang demo"></textarea>
+                        </label>
+                        <button class="primary-button" type="submit">Nhap hang</button>
+                    </form>
+                </section>
+
+                <section class="panel admin-table-panel">
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Product list</p>
+                            <h3 id="staff-table-title">Danh sach san pham</h3>
+                        </div>
+                    </div>
+                    <div class="inventory-table-wrap">
+                        <table class="inventory-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Ten san pham</th>
+                                    <th>Thuong hieu</th>
+                                    <th>Gia</th>
+                                    <th>Ton kho</th>
+                                    <th>Trang thai</th>
+                                    <th>Thao tac</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staff-product-table"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="section-head-inline">
+                        <div>
+                            <p class="panel-kicker">Import history</p>
+                            <h3>Lich su nhap hang</h3>
+                        </div>
+                    </div>
+                    <div id="staff-import-history" class="history-list"></div>
+                </section>
             </section>
         </main>
     </div>
 
-    <aside class="mini-cart-drawer hidden" id="mini-cart-drawer">
-        <div class="mini-cart-header">
-            <div>
-                <p class="section-kicker">Giỏ hàng</p>
-                <h3>Tổng quan đơn hàng</h3>
-            </div>
-            <button class="ghost-button" id="mini-cart-close">Đóng</button>
-        </div>
-        <div class="cart-summary-banner" id="customer-cart-summary"></div>
-        <div class="cart-items" id="customer-cart-items"></div>
-    </aside>
-
     <div class="modal-backdrop hidden" id="product-modal">
         <div class="product-modal-card">
-            <button class="ghost-button modal-close" id="product-modal-close">Đóng</button>
+            <button class="ghost-button modal-close" id="product-modal-close" type="button">Dong</button>
             <div class="product-modal-layout">
                 <div class="product-modal-media" id="product-modal-media"></div>
                 <div class="product-modal-content" id="product-modal-content"></div>

@@ -18,3 +18,9 @@ class LaptopServiceClient(BaseServiceClient):
 
     def list_laptops(self, params=None):
         return self.request("GET", "/laptops/", params=params)
+
+    def detail(self, product_id):
+        return self.request("GET", f"/laptops/{product_id}/")
+
+    def adjust_stock(self, product_id, quantity_delta):
+        return self.request("POST", f"/laptops/{product_id}/stock-adjust/", json={"quantity_delta": quantity_delta})

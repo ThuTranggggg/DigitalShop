@@ -54,19 +54,38 @@ services:
     networks:
       - digitalshop-network
 
-  postgres-mobile:
+  postgres-clothes:
     image: postgres:15
-    container_name: postgres-mobile
+    container_name: postgres-clothes
     environment:
-      POSTGRES_DB: mobile_db
+      POSTGRES_DB: clothes_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
     ports:
       - "5433:5432"
     volumes:
-      - postgres_mobile_data:/var/lib/postgresql/data
+      - postgres_clothes_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d mobile_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clothes_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - digitalshop-network
+
+  postgres-cart:
+    image: postgres:15
+    container_name: postgres-cart
+    environment:
+      POSTGRES_DB: cart_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_cart_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cart_db"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -89,29 +108,72 @@ services:
     depends_on:
       postgres-laptop:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "8003:8003"
     networks:
       - digitalshop-network
 
-  mobile-service:
-    build: ./mobile-service
-    container_name: mobile-service
+  clothes-service:
+    build: ./clothes-service
+    container_name: clothes-service
     environment:
       DEBUG: "1"
-      SECRET_KEY: mobile_secret_key
-      DB_NAME: mobile_db
+      SECRET_KEY: clothes_secret_key
+      DB_NAME: clothes_db
       DB_USER: postgres
       DB_PASSWORD: 123456
-      DB_HOST: postgres-mobile
+      DB_HOST: postgres-clothes
       DB_PORT: 5432
       TIME_ZONE: Asia/Ho_Chi_Minh
     command: sh -c "python manage.py migrate && python manage.py seed_data && python manage.py runserver 0.0.0.0:8004"
     depends_on:
-      postgres-mobile:
+      postgres-clothes:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "8004:8004"
+    networks:
+      - digitalshop-network
+
+  cart-service:
+    build: ./cart-service
+    container_name: cart-service
+    environment:
+      DEBUG: "1"
+      SECRET_KEY: cart_secret_key
+      DB_NAME: cart_db
+      DB_USER: postgres
+      DB_PASSWORD: 123456
+      DB_HOST: postgres-cart
+      DB_PORT: 5432
+      LAPTOP_SERVICE_URL: http://laptop-service:8003
+      CLOTHES_SERVICE_URL: http://clothes-service:8004
+      SERVICE_TIMEOUT: 10
+      TIME_ZONE: Asia/Ho_Chi_Minh
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8005"
+    depends_on:
+      postgres-cart:
+        condition: service_healthy
+      laptop-service:
+        condition: service_healthy
+      clothes-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "8005:8005"
     networks:
       - digitalshop-network
 
@@ -127,7 +189,7 @@ services:
       DB_HOST: mysql-staff
       DB_PORT: 3306
       LAPTOP_SERVICE_URL: http://laptop-service:8003
-      MOBILE_SERVICE_URL: http://mobile-service:8004
+      CLOTHES_SERVICE_URL: http://clothes-service:8004
       SERVICE_TIMEOUT: 10
       TIME_ZONE: Asia/Ho_Chi_Minh
     command: sh -c "python manage.py migrate && python manage.py seed_data && python manage.py runserver 0.0.0.0:8001"
@@ -135,9 +197,14 @@ services:
       mysql-staff:
         condition: service_healthy
       laptop-service:
-        condition: service_started
-      mobile-service:
-        condition: service_started
+        condition: service_healthy
+      clothes-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "8001:8001"
     networks:
@@ -155,7 +222,8 @@ services:
       DB_HOST: mysql-customer
       DB_PORT: 3306
       LAPTOP_SERVICE_URL: http://laptop-service:8003
-      MOBILE_SERVICE_URL: http://mobile-service:8004
+      CLOTHES_SERVICE_URL: http://clothes-service:8004
+      CART_SERVICE_URL: http://cart-service:8005
       SERVICE_TIMEOUT: 10
       TIME_ZONE: Asia/Ho_Chi_Minh
     command: sh -c "python manage.py migrate && python manage.py seed_data && python manage.py runserver 0.0.0.0:8002"
@@ -163,9 +231,16 @@ services:
       mysql-customer:
         condition: service_healthy
       laptop-service:
-        condition: service_started
-      mobile-service:
-        condition: service_started
+        condition: service_healthy
+      clothes-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "8002:8002"
     networks:
@@ -175,10 +250,14 @@ services:
     build: ./api-gateway
     container_name: api-gateway
     depends_on:
-      - staff-service
-      - customer-service
-      - laptop-service
-      - mobile-service
+      staff-service:
+        condition: service_healthy
+      customer-service:
+        condition: service_healthy
+      laptop-service:
+        condition: service_healthy
+      clothes-service:
+        condition: service_healthy
     ports:
       - "8000:80"
     networks:
@@ -188,7 +267,8 @@ volumes:
   mysql_staff_data:
   mysql_customer_data:
   postgres_laptop_data:
-  postgres_mobile_data:
+  postgres_clothes_data:
+  postgres_cart_data:
 
 networks:
   digitalshop-network:

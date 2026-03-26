@@ -1,127 +1,123 @@
 const state = {
-    route: window.location.hash || "#/",
+    route: location.hash || "#/",
     staff: {
         token: localStorage.getItem("digitalshop.staffToken") || "",
         profile: JSON.parse(localStorage.getItem("digitalshop.staffProfile") || "null"),
-        activeType: "laptop",
-        overview: null,
+        type: "laptop",
+        dashboard: null,
+        imports: [],
     },
     customer: {
         token: localStorage.getItem("digitalshop.customerToken") || "",
         profile: JSON.parse(localStorage.getItem("digitalshop.customerProfile") || "null"),
-        activeType: "laptop",
+        type: "laptop",
         products: [],
         cart: null,
+        invoices: [],
+        selectedInvoice: null,
     },
-    miniCartOpen: false,
 };
 
-const productConfigs = {
+const routeViews = {
+    "#/": "landing-view",
+    "#/customer-login": "customer-login-view",
+    "#/shop": "shop-view",
+    "#/cart": "cart-view",
+    "#/checkout": "checkout-view",
+    "#/invoices": "invoices-view",
+    "#/staff-login": "staff-login-view",
+    "#/admin": "admin-view",
+};
+
+const customerRoutes = new Set(["#/shop", "#/cart", "#/checkout", "#/invoices"]);
+const staffRoutes = new Set(["#/admin"]);
+
+const staffFields = {
     laptop: [
-        ["name", "Tên sản phẩm"],
-        ["brand", "Thương hiệu"],
+        ["name", "Ten san pham"],
+        ["brand", "Thuong hieu"],
         ["cpu", "CPU"],
         ["ram", "RAM"],
-        ["storage", "Bộ nhớ"],
-        ["screen", "Màn hình"],
-        ["price", "Giá", "number"],
-        ["stock", "Tồn kho", "number"],
-        ["image_url", "Link ảnh"],
-        ["description", "Mô tả", "textarea", "wide"],
+        ["storage", "Bo nho"],
+        ["screen", "Man hinh"],
+        ["price", "Gia", "number"],
+        ["stock", "Ton kho", "number"],
+        ["image_url", "Link anh"],
+        ["status", "Trang thai", "select", ["ACTIVE", "HIDDEN"]],
+        ["description", "Mo ta", "textarea"],
     ],
-    mobile: [
-        ["name", "Tên sản phẩm"],
-        ["brand", "Thương hiệu"],
-        ["chip", "Chip"],
-        ["ram", "RAM"],
-        ["storage", "Bộ nhớ"],
-        ["battery", "Pin"],
-        ["camera", "Camera"],
-        ["price", "Giá", "number"],
-        ["stock", "Tồn kho", "number"],
-        ["image_url", "Link ảnh"],
-        ["description", "Mô tả", "textarea", "wide"],
+    clothes: [
+        ["name", "Ten san pham"],
+        ["brand", "Thuong hieu"],
+        ["category", "Danh muc"],
+        ["size", "Size"],
+        ["material", "Chat lieu"],
+        ["color", "Mau sac"],
+        ["price", "Gia", "number"],
+        ["stock", "Ton kho", "number"],
+        ["image_url", "Link anh"],
+        ["status", "Trang thai", "select", ["ACTIVE", "HIDDEN"]],
+        ["description", "Mo ta", "textarea"],
     ],
 };
 
-function $(selector) {
-    return document.querySelector(selector);
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function money(value) {
+    return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(value || 0))} đ`;
 }
 
-function $all(selector) {
-    return Array.from(document.querySelectorAll(selector));
+function formatDate(value) {
+    if (!value) return "Khong ro";
+    return new Date(value).toLocaleString("vi-VN");
 }
 
-function setNodeText(selector, value) {
-    const node = $(selector);
-    if (node) node.textContent = value;
+function labelForType(type) {
+    return type === "laptop" ? "Laptop" : "Clothes";
 }
 
-function formatCurrency(value) {
-    return `${new Intl.NumberFormat("vi-VN", {
-        maximumFractionDigits: 0,
-    }).format(Number(value || 0))} đ`;
+function requestHeaders(token = "", includeJson = false) {
+    return {
+        ...(includeJson ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 }
 
-function toast(message, type = "success") {
-    const container = $("#toast-container");
-    const item = document.createElement("div");
-    item.className = `toast ${type === "error" ? "error" : ""}`;
-    item.textContent = message;
-    container.appendChild(item);
-    setTimeout(() => item.remove(), 3200);
-}
-
-async function apiFetch(url, options = {}) {
-    try {
-        const bodyLog = options.body ? (typeof options.body === 'string' ? options.body.substring(0, 100) : JSON.stringify(options.body).substring(0, 100)) : "";
-        console.log(`[API Request] ${options.method || 'GET'} ${url}`, bodyLog);
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                ...(options.body ? { "Content-Type": "application/json" } : {}),
-                ...(options.headers || {}),
-            },
-        });
-        console.log(`[API Response] ${options.method || 'GET'} ${url}: Status ${response.status}`);
-        const payload = await response.json().catch(() => ({}));
-        console.log(`[API Response] ${options.method || 'GET'} ${url}: Payload:`, payload);
-        if (!response.ok || payload.success === false) {
-            const errorMsg = payload.message || payload.detail || "Yêu cầu thất bại";
-            console.error(`[API Error] ${errorMsg}`);
-            throw new Error(errorMsg);
-        }
-        const result = payload.data || payload;
-        console.log(`[API Result] ${options.method || 'GET'} ${url}: Returning:`, result);
-        return result;
-    } catch (error) {
-        console.error(`[Fetch Error] ${url}:`, error.message, error);
-        throw error;
+async function api(url, options = {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+        },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || payload.detail || "Yeu cau that bai");
     }
+    return payload.data ?? payload;
 }
 
-function persistState() {
+function toast(message, isError = false) {
+    const node = document.createElement("div");
+    node.className = `toast${isError ? " error" : ""}`;
+    node.textContent = message;
+    $("#toast-container").appendChild(node);
+    setTimeout(() => node.remove(), 3200);
+}
+
+function persistSession() {
     localStorage.setItem("digitalshop.staffToken", state.staff.token || "");
     localStorage.setItem("digitalshop.staffProfile", JSON.stringify(state.staff.profile || null));
     localStorage.setItem("digitalshop.customerToken", state.customer.token || "");
     localStorage.setItem("digitalshop.customerProfile", JSON.stringify(state.customer.profile || null));
 }
 
-async function safeLoadAfterLogin(loader, warningMessage) {
-    try {
-        await loader();
-        return true;
-    } catch (error) {
-        console.error("[Post Login Error]", error.message, error);
-        toast(`${warningMessage}: ${error.message}`, "error");
-        return false;
-    }
-}
-
 function clearStaffSession() {
     state.staff.token = "";
     state.staff.profile = null;
-    state.staff.overview = null;
+    state.staff.dashboard = null;
+    state.staff.imports = [];
 }
 
 function clearCustomerSession() {
@@ -129,815 +125,821 @@ function clearCustomerSession() {
     state.customer.profile = null;
     state.customer.products = [];
     state.customer.cart = null;
-    state.miniCartOpen = false;
+    state.customer.invoices = [];
+    state.customer.selectedInvoice = null;
 }
 
-function initials(name = "Khách") {
-    return name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((word) => word[0])
-        .join("")
-        .toUpperCase() || "KH";
-}
-
-function skeletonTemplate(count = 4) {
-    return Array.from({ length: count }).map(() => `
-        <article class="skeleton-card">
-            <div class="skeleton-block skeleton-image"></div>
-            <div class="skeleton-block" style="height: 18px;"></div>
-            <div class="skeleton-block" style="height: 16px; width: 70%;"></div>
-            <div class="skeleton-block" style="height: 16px;"></div>
-        </article>
-    `).join("");
-}
-
-function productBadge(product, type) {
-    if (Number(product.stock) <= 5) return "Sắp hết hàng";
-    if ((type === "laptop" && Number(product.price) >= 35000000) || (type === "mobile" && Number(product.price) >= 20000000)) {
-        return "Bán chạy";
+function setBodyTheme(route) {
+    const body = document.body;
+    body.classList.remove("theme-public", "theme-customer", "theme-staff");
+    if (staffRoutes.has(route) || route === "#/staff-login") {
+        body.classList.add("theme-staff");
+        return;
     }
-    return "Mới";
-}
-
-function productVisual(product) {
-    if (product.image_url) {
-        return `<img src="${product.image_url}" alt="${product.name}" onerror="this.parentElement.innerHTML='<div class=&quot;product-placeholder&quot;>${product.brand}</div>'">`;
+    if (customerRoutes.has(route) || route === "#/customer-login") {
+        body.classList.add("theme-customer");
+        return;
     }
-    return `<div class="product-placeholder">${product.brand}</div>`;
-}
-
-function buildStaffFields(type) {
-    $("#staff-form-fields").innerHTML = productConfigs[type]
-        .map(([name, label, inputType = "text", extraClass = ""]) => {
-            if (inputType === "textarea") {
-                return `<label class="${extraClass}">${label}<textarea name="${name}"></textarea></label>`;
-            }
-            return `<label class="${extraClass}">${label}<input type="${inputType}" name="${name}"></label>`;
-        })
-        .join("");
-}
-
-function fillStaffForm(type, item = {}) {
-    const form = $("#staff-product-form");
-    form.elements.type.value = type;
-    form.elements.id.value = item.id || "";
-    buildStaffFields(type);
-    for (const [name] of productConfigs[type]) {
-        form.elements[name].value = item[name] ?? "";
-    }
-}
-
-function resetStaffForm() {
-    fillStaffForm(state.staff.activeType);
-}
-
-function resolveRoute() {
-    const rawRoute = window.location.hash || "#/";
-    state.route = ["#/", "#/shop", "#/cart", "#/admin"].includes(rawRoute) ? rawRoute : "#/";
-}
-
-function setRoute() {
-    resolveRoute();
-    const views = {
-        "#/": "#landing-view",
-        "#/shop": "#shop-view",
-        "#/cart": "#cart-view",
-        "#/admin": "#admin-view",
-    };
-
-    Object.values(views).forEach((selector) => $(selector).classList.add("hidden"));
-    $(views[state.route] || "#landing-view").classList.remove("hidden");
-
-    document.body.classList.toggle("admin-mode", state.route === "#/admin");
-    updateHeaderStatus();
-    updateCustomerStatus();
-    updateStaffStatus();
+    body.classList.add("theme-public");
 }
 
 function updateHeaderStatus() {
-    const header = $("#header-status");
-    if (state.staff.token && state.staff.profile) {
-        header.textContent = `Nhân viên: ${state.staff.profile.username}`;
-        return;
+    const label = $("#header-status-label");
+    const value = $("#header-status-value");
+
+    if (state.staff.profile) {
+        label.textContent = "Staff portal";
+        value.textContent = state.staff.profile.username;
+    } else if (state.customer.profile) {
+        label.textContent = "Customer area";
+        value.textContent = state.customer.profile.username;
+    } else {
+        label.textContent = "Guest Area";
+        value.textContent = "Chua dang nhap";
     }
-    if (state.customer.token && state.customer.profile) {
-        header.textContent = `Khách hàng: ${state.customer.profile.username}`;
-        return;
-    }
-    header.textContent = "Chưa đăng nhập";
+
+    $$(".nav-link").forEach((link) => {
+        const route = link.dataset.navRoute;
+        const active =
+            route === state.route ||
+            (route === "#/customer-login" && state.route === "#/shop") ||
+            (route === "#/staff-login" && state.route === "#/admin");
+        link.classList.toggle("active", active);
+    });
+
+    $$(".workspace-link").forEach((link) => {
+        link.classList.toggle("active", link.dataset.customerRoute === state.route);
+    });
 }
 
-function updateCustomerStatus() {
-    const loggedIn = Boolean(state.customer.token && state.customer.profile);
-    $("#customer-auth-panel").classList.toggle("hidden", loggedIn);
-    $(".shop-layout").classList.toggle("hidden", !loggedIn || state.route === "#/cart");
-    $("#shop-view .dashboard-header").classList.toggle("hidden", !loggedIn);
-    const shopOverview = $(".shop-overview-grid");
-    if (shopOverview) {
-        shopOverview.classList.toggle("hidden", !loggedIn || state.route === "#/cart");
+function showRoute(route) {
+    Object.values(routeViews).forEach((viewId) => {
+        $(`#${viewId}`).classList.add("hidden");
+    });
+    const activeView = routeViews[route] || routeViews["#/"];
+    $(`#${activeView}`).classList.remove("hidden");
+}
+
+function guardRoute(route) {
+    if (customerRoutes.has(route) && !state.customer.token) {
+        return "#/customer-login";
     }
-    $("#cart-view").classList.toggle("hidden", state.route !== "#/cart" || !loggedIn);
-    setNodeText("#customer-profile-name", loggedIn ? state.customer.profile.full_name : "Khách hàng");
-    setNodeText("#customer-welcome-text", loggedIn
-        ? `${state.customer.profile.email} | ${state.customer.profile.phone}`
-        : "Thông tin tài khoản đăng nhập");
-    setNodeText("#customer-profile-meta", loggedIn
-        ? `Khách hàng: ${state.customer.profile.username}`
-        : "Đăng nhập để mở khóa giỏ hàng.");
-    setNodeText("#customer-avatar", initials(loggedIn ? state.customer.profile.full_name : "Khách hàng"));
-    $("#customer-register-block").classList.toggle("hidden", loggedIn);
-    setNodeText("#customer-active-category", state.customer.activeType === "laptop" ? "Laptop" : "Điện thoại");
-    setNodeText("#customer-product-count", String(state.customer.products.length || 0));
-    setNodeText("#customer-toolbar-result", `${state.customer.products.length || 0} kết quả`);
+    if (staffRoutes.has(route) && !state.staff.token) {
+        return "#/staff-login";
+    }
+    if (route === "#/customer-login" && state.customer.token) {
+        return "#/shop";
+    }
+    if (route === "#/staff-login" && state.staff.token) {
+        return "#/admin";
+    }
+    return routeViews[route] ? route : "#/";
 }
 
-function updateStaffStatus() {
-    const loggedIn = Boolean(state.staff.token && state.staff.profile);
-    $("#staff-auth-panel").classList.toggle("hidden", loggedIn);
-    $("#admin-view .dashboard-header").classList.toggle("hidden", !loggedIn);
-    $(".admin-layout").classList.toggle("hidden", !loggedIn);
-    const adminOverview = $(".admin-overview-grid");
-    if (adminOverview) adminOverview.classList.toggle("hidden", !loggedIn);
-    setNodeText("#staff-profile-name", state.staff.profile?.full_name || "Chưa đăng nhập");
-    setNodeText("#staff-active-category", state.staff.activeType === "laptop" ? "Laptop" : "Điện thoại");
+function productBadge(product, type) {
+    if (Number(product.stock) <= 5) return "Sap het";
+    if (type === "laptop" && Number(product.price) >= 35000000) return "Premium";
+    if (type === "clothes" && Number(product.price) >= 900000) return "Trending";
+    return "San co";
 }
 
-function updateMiniCartState() {
-    $("#mini-cart-drawer").classList.toggle("hidden", !state.miniCartOpen);
+function productSpecs(product, type) {
+    if (type === "laptop") {
+        return [product.cpu, product.ram, product.storage, product.screen];
+    }
+    return [product.category, product.size && `Size ${product.size}`, product.material, product.color];
+}
+
+function productImage(product) {
+    if (product.image_url) {
+        return `<img src="${product.image_url}" alt="${product.name}">`;
+    }
+    return `<div class="product-placeholder">${product.brand || product.category || "Item"}</div>`;
 }
 
 function openProductModal(product) {
-    const specs = state.customer.activeType === "laptop"
-        ? [product.cpu, product.ram, product.storage, product.screen]
-        : [product.chip, product.ram, product.storage, product.battery, product.camera];
-
-    $("#product-modal-media").innerHTML = productVisual(product);
+    $("#product-modal-media").innerHTML = productImage(product);
     $("#product-modal-content").innerHTML = `
         <div class="product-detail-header">
-            <div class=\"product-badge\">${productBadge(product, state.customer.activeType)}</div>
-            <h2>${product.name}</h2>
-            <div class="brand-info">${product.brand}</div>
+            <p class="panel-kicker">Chi tiet san pham</p>
+            <h3>${product.name}</h3>
+            <span class="status-pill">${productBadge(product, state.customer.type)}</span>
         </div>
-        
-        <div class="product-detail-pricing">
-            <div class="price-label">Giá bán</div>
-            <div class="product-modal-price">${formatCurrency(product.price)}</div>
+        <div class="detail-price">${money(product.price)}</div>
+        <p class="detail-copy">${product.description || "Chua co mo ta."}</p>
+        <div class="detail-spec-grid">
+            ${productSpecs(product, state.customer.type)
+                .filter(Boolean)
+                .map((spec) => `<span>${spec}</span>`)
+                .join("")}
         </div>
-
-        <div class="product-detail-section">
-            <div class="section-label">Mô tả sản phẩm</div>
-            <p class="product-description-text">${product.description || "Chưa có mô tả chi tiết."}</p>
-        </div>
-
-        <div class="product-detail-section">
-            <div class="section-label">Thông số kỹ thuật</div>
-            <div class="specs-grid">
-                ${specs.filter(Boolean).map((spec) => `<div class="spec-item"><span>${spec}</span></div>`).join("")}
-            </div>
-        </div>
-
-        <div class="product-detail-section">
-            <div class="section-label">Tình trạng hàng hóa</div>
-            <div class="stock-info">Tồn kho: <strong>${product.stock} ${state.customer.activeType === "laptop" ? "chiếc" : "chiếc"}</strong></div>
-        </div>
+        <div class="detail-stock">Ton kho hien tai: <strong>${product.stock}</strong></div>
     `;
     $("#product-modal").classList.remove("hidden");
 }
 
-function closeProductModal() {
-    $("#product-modal").classList.add("hidden");
-}
-
-function renderStaffTable(products) {
-    const table = $("#staff-product-table");
-    if (!products.length) {
-        table.innerHTML = `<tr><td colspan="6"><div class="empty-state">Chưa có sản phẩm nào.</div></td></tr>`;
-        return;
-    }
-
-    table.innerHTML = products.map((item) => `
-        <tr>
-            <td>${item.id}</td>
-            <td><strong>${item.name}</strong></td>
-            <td>${item.brand}</td>
-            <td>${formatCurrency(item.price)}</td>
-            <td>${item.stock}</td>
-            <td>
-                <button class="secondary-button inventory-action" data-edit-id="${item.id}">Sửa</button>
-                <button class="inventory-action delete" data-delete-id="${item.id}">Xóa</button>
-            </td>
-        </tr>
-    `).join("");
-
-    table.querySelectorAll("[data-edit-id]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const product = products.find((item) => String(item.id) === button.dataset.editId);
-            if (product) {
-                fillStaffForm(state.staff.activeType, product);
-                toast(`Đang sửa ${state.staff.activeType} #${product.id}`);
-            }
-        });
-    });
-
-    table.querySelectorAll("[data-delete-id]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const id = button.dataset.deleteId;
-            if (!confirm(`Bạn có chắc chắn muốn xóa ${state.staff.activeType} #${id}?`)) return;
-            try {
-                await apiFetch(`/api/staff/${state.staff.activeType}s/${id}/`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${state.staff.token}` },
-                });
-                toast("Đã xóa sản phẩm");
-                await fetchStaffOverview();
-                resetStaffForm();
-            } catch (error) {
-                toast(error.message, "error");
-            }
-        });
-    });
-}
-
-async function fetchStaffOverview() {
-    state.staff.overview = await apiFetch("/api/staff/products/overview/", {
-        headers: { Authorization: `Bearer ${state.staff.token}` },
-    });
-    const activeList = state.staff.activeType === "laptop" ? state.staff.overview.laptops : state.staff.overview.mobiles;
-    setNodeText("#staff-overview-count", `${state.staff.overview.total_laptops} laptop / ${state.staff.overview.total_mobiles} điện thoại`);
-    setNodeText("#staff-summary-total", `${state.staff.overview.total_laptops + state.staff.overview.total_mobiles} sản phẩm`);
-    setNodeText("#staff-visible-count", `${activeList.length} mục`);
-    setNodeText("#staff-active-category", state.staff.activeType === "laptop" ? "Laptop" : "Điện thoại");
-    renderStaffTable(activeList);
-}
-
-function renderCatalog(products) {
-    const grid = $("#customer-product-grid");
-    setNodeText("#customer-product-count", String(products.length || 0));
-    setNodeText("#customer-toolbar-result", `${products.length || 0} kết quả`);
-    setNodeText("#customer-active-category", state.customer.activeType === "laptop" ? "Laptop" : "Điện thoại");
-    if (!products.length) {
-        grid.innerHTML = `<div class="empty-state">Không tìm thấy sản phẩm phù hợp.</div>`;
-        return;
-    }
-
-    grid.innerHTML = products.map((product) => {
-        const specs = state.customer.activeType === "laptop"
-            ? [product.cpu, product.ram, product.storage, product.screen]
-            : [product.chip, product.ram, product.storage, product.camera];
-        return `
-            <article class="product-card compact-product-card">
-                <div class="product-image">
-                    <div class="product-placeholder product-list-placeholder">${product.brand}</div>
-                </div>
-                <div class="product-main">
-                    <div class="product-topline compact-topline">
-                        <div class="product-title-wrap">
-                            <div class="catalog-chip">${product.brand}</div>
-                            <h4>${product.name}</h4>
-                            <p class="product-subtitle">Tồn kho ${product.stock}</p>
-                        </div>
-                        <div class="product-price">
-                            <div class="product-badge">${productBadge(product, state.customer.activeType)}</div>
-                            <strong>${formatCurrency(product.price)}</strong>
-                        </div>
-                    </div>
-                    <p class="product-description">${product.description || "Chưa có mô tả sản phẩm."}</p>
-                    <div class="hero-badges">
-                        ${specs.filter(Boolean).map((spec) => `<span>${spec}</span>`).join("")}
-                    </div>
-                </div>
-                <div class="product-footer compact-footer">
-                    <button class="secondary-button small" data-detail-id="${product.id}">Chi tiết</button>
-                    <label class="qty-field">
-                        <span>SL</span>
-                        <input type="number" min="1" max="${product.stock}" value="1" step="1" inputmode="numeric" data-qty-for="${product.id}">
+function buildStaffForm() {
+    const container = $("#staff-form-fields");
+    container.innerHTML = staffFields[state.staff.type]
+        .map(([name, label, kind = "text", options = []]) => {
+            if (kind === "textarea") {
+                return `
+                    <label>
+                        <span>${label}</span>
+                        <textarea name="${name}"></textarea>
                     </label>
-                    <button class="primary-button small" data-add-id="${product.id}">Thêm</button>
-                </div>
-            </article>
-        `;
-    }).join("");
+                `;
+            }
+            if (kind === "select") {
+                return `
+                    <label>
+                        <span>${label}</span>
+                        <select name="${name}">
+                            ${options.map((option) => `<option value="${option}">${option}</option>`).join("")}
+                        </select>
+                    </label>
+                `;
+            }
+            return `
+                <label>
+                    <span>${label}</span>
+                    <input type="${kind}" name="${name}">
+                </label>
+            `;
+        })
+        .join("");
+}
 
-    grid.querySelectorAll("[data-detail-id]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const product = products.find((item) => String(item.id) === button.dataset.detailId);
-            if (product) openProductModal(product);
-        });
+function fillStaffForm(item = {}) {
+    buildStaffForm();
+    const form = $("#staff-product-form");
+    form.elements.id.value = item.id || "";
+    staffFields[state.staff.type].forEach(([name, , kind]) => {
+        form.elements[name].value = item[name] ?? (kind === "select" ? "ACTIVE" : "");
+    });
+    $("#staff-form-title").textContent = item.id
+        ? `Dang sua ${labelForType(state.staff.type)} #${item.id}`
+        : `Them ${labelForType(state.staff.type)} moi`;
+}
+
+function currentStaffProducts() {
+    if (!state.staff.dashboard) return [];
+    return state.staff.type === "laptop"
+        ? state.staff.dashboard.laptops || []
+        : state.staff.dashboard.clothes || [];
+}
+
+function renderStaffDashboard() {
+    const dashboard = state.staff.dashboard;
+    if (!dashboard) return;
+
+    $("#staff-profile-line").textContent = `${state.staff.profile.full_name} | ${state.staff.profile.email}`;
+    $("#staff-total-products").textContent = dashboard.total_products || 0;
+    $("#staff-total-stock").textContent = dashboard.total_stock || 0;
+    $("#staff-import-count").textContent = dashboard.recent_import_count || 0;
+    $("#staff-active-label").textContent = `Dang quan ly ${labelForType(state.staff.type).toLowerCase()}`;
+    $("#staff-table-title").textContent = `Danh sach ${labelForType(state.staff.type)}`;
+
+    const rows = currentStaffProducts();
+    const tbody = $("#staff-product-table");
+    tbody.innerHTML = rows.length
+        ? rows
+              .map(
+                  (item) => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>
+                            <strong>${item.name}</strong>
+                            <div class="table-subline">${item.description || "Chua co mo ta"}</div>
+                        </td>
+                        <td>${item.brand || "-"}</td>
+                        <td>${money(item.price)}</td>
+                        <td>${item.stock}</td>
+                        <td><span class="status-pill">${item.status || "ACTIVE"}</span></td>
+                        <td class="table-actions">
+                            <button class="secondary-button small" data-edit="${item.id}" type="button">Sua</button>
+                            <button class="danger-button small" data-delete="${item.id}" type="button">Xoa</button>
+                        </td>
+                    </tr>
+                `
+              )
+              .join("")
+        : `<tr><td colspan="7"><div class="empty-state">Chua co san pham trong danh muc nay.</div></td></tr>`;
+
+    tbody.querySelectorAll("[data-edit]").forEach((button) => {
+        button.onclick = () => {
+            const item = rows.find((row) => String(row.id) === button.dataset.edit);
+            fillStaffForm(item);
+        };
     });
 
-    grid.querySelectorAll("[data-add-id]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const productId = Number(button.dataset.addId);
-            const quantity = Number(grid.querySelector(`[data-qty-for="${productId}"]`).value || 1);
+    tbody.querySelectorAll("[data-delete]").forEach((button) => {
+        button.onclick = async () => {
+            if (!confirm("Xac nhan xoa san pham nay?")) return;
             try {
-                await ensureCart();
-                await apiFetch("/api/customers/cart/items/", {
+                await api(`/api/staff/${state.staff.type}s/${button.dataset.delete}/`, {
+                    method: "DELETE",
+                    headers: requestHeaders(state.staff.token),
+                });
+                toast("Da xoa san pham");
+                await loadStaffDashboard();
+            } catch (error) {
+                toast(error.message, true);
+            }
+        };
+    });
+
+    const history = state.staff.imports.length ? state.staff.imports : dashboard.recent_imports || [];
+    $("#staff-import-history").innerHTML = history.length
+        ? history
+              .map(
+                  (item) => `
+                    <article class="history-card">
+                        <strong>${item.product_name}</strong>
+                        <p>${item.product_type} | ID ${item.product_id}</p>
+                        <p>+${item.quantity_added} | ${item.stock_before} -> ${item.stock_after}</p>
+                        <p>${item.note || "Khong co ghi chu"}</p>
+                    </article>
+                `
+              )
+              .join("")
+        : `<div class="empty-state">Chua co lich su nhap hang.</div>`;
+
+    fillStaffForm();
+}
+
+async function loadStaffDashboard() {
+    if (!state.staff.token) return;
+    const [dashboard, imports] = await Promise.all([
+        api("/api/staff/dashboard/", { headers: requestHeaders(state.staff.token) }),
+        api("/api/staff/imports/", { headers: requestHeaders(state.staff.token) }),
+    ]);
+    state.staff.dashboard = dashboard;
+    state.staff.imports = imports;
+    renderStaffDashboard();
+}
+
+function renderCustomerMiniCart() {
+    const cart = state.customer.cart;
+    if (!cart || !cart.items?.length) {
+        $("#customer-mini-cart").innerHTML = `
+            <strong>0 san pham</strong>
+            <span>Chua co san pham trong gio hang.</span>
+        `;
+        return;
+    }
+
+    $("#customer-mini-cart").innerHTML = `
+        <strong>${cart.total_quantity} san pham</strong>
+        <span>${money(cart.total_amount)}</span>
+    `;
+}
+
+function renderCustomerProducts() {
+    const products = state.customer.products || [];
+    $("#customer-active-category-label").textContent = labelForType(state.customer.type);
+    $("#customer-product-count").textContent = `${products.length} san pham`;
+    $("#customer-active-helper").textContent =
+        state.customer.type === "laptop"
+            ? "Laptop duoc dong bo tu laptop-service."
+            : "Clothes duoc dong bo tu clothes-service.";
+    $("#customer-profile-line").textContent = state.customer.profile
+        ? `${state.customer.profile.full_name} | ${state.customer.profile.email}`
+        : "Chua dang nhap";
+
+    const grid = $("#customer-product-grid");
+    grid.innerHTML = products.length
+        ? products
+              .map(
+                  (product) => `
+                    <article class="product-card">
+                        <div class="product-media">${productImage(product)}</div>
+                        <div class="product-body">
+                            <div class="product-head">
+                                <div>
+                                    <p class="catalog-chip">${product.brand || labelForType(state.customer.type)}</p>
+                                    <h4>${product.name}</h4>
+                                </div>
+                                <span class="status-pill">${productBadge(product, state.customer.type)}</span>
+                            </div>
+                            <p class="product-description">${product.description || "Chua co mo ta."}</p>
+                            <div class="product-specs">
+                                ${productSpecs(product, state.customer.type)
+                                    .filter(Boolean)
+                                    .map((spec) => `<span>${spec}</span>`)
+                                    .join("")}
+                            </div>
+                            <div class="product-foot">
+                                <div>
+                                    <strong>${money(product.price)}</strong>
+                                    <span>Ton kho ${product.stock}</span>
+                                </div>
+                                <label class="qty-field">
+                                    <span>SL</span>
+                                    <input type="number" min="1" max="${product.stock}" value="1" data-qty="${product.id}">
+                                </label>
+                            </div>
+                            <div class="product-actions">
+                                <button class="secondary-button" data-detail="${product.id}" type="button">Chi tiet</button>
+                                <button class="primary-button" data-add="${product.id}" type="button">Them vao gio</button>
+                            </div>
+                        </div>
+                    </article>
+                `
+              )
+              .join("")
+        : `<div class="empty-state">Khong co san pham phu hop.</div>`;
+
+    grid.querySelectorAll("[data-detail]").forEach((button) => {
+        button.onclick = () => {
+            const product = products.find((item) => String(item.id) === button.dataset.detail);
+            openProductModal(product);
+        };
+    });
+
+    grid.querySelectorAll("[data-add]").forEach((button) => {
+        button.onclick = async () => {
+            const quantityInput = grid.querySelector(`[data-qty="${button.dataset.add}"]`);
+            const quantity = Number(quantityInput?.value || 1);
+            try {
+                await api("/api/customers/cart/", {
                     method: "POST",
-                    headers: { Authorization: `Bearer ${state.customer.token}` },
+                    headers: requestHeaders(state.customer.token),
+                });
+                await api("/api/customers/cart/items/", {
+                    method: "POST",
+                    headers: requestHeaders(state.customer.token, true),
                     body: JSON.stringify({
-                        product_type: state.customer.activeType.toUpperCase(),
-                        product_id: productId,
+                        product_type: state.customer.type.toUpperCase(),
+                        product_id: Number(button.dataset.add),
                         quantity,
                     }),
                 });
-                toast("Đã thêm vào giỏ hàng");
-                await fetchCartSummary();
+                toast("Da them vao gio hang");
+                await loadCustomerCart();
             } catch (error) {
-                toast(error.message, "error");
+                toast(error.message, true);
             }
-        });
+        };
     });
 }
 
-function renderCart(summary) {
-    const summaryNode = $("#customer-cart-summary");
-    const itemsNode = $("#customer-cart-items");
-    setNodeText("#cart-total-amount", `Tổng giỏ hàng: ${formatCurrency(summary?.total_amount || 0)}`);
-    setNodeText("#customer-cart-items-count", `${summary?.total_quantity || 0} sản phẩm`);
-
-    if (!summary || !summary.items?.length) {
-        summaryNode.innerHTML = `
-            <span class="pill-chip">0 sản phẩm</span>
-            <strong>${formatCurrency(0)}</strong>
-            <span>Chưa có sản phẩm trong giỏ.</span>
-        `;
-        itemsNode.innerHTML = `<div class="empty-state">Giỏ hàng đang trống.</div>`;
-        updateCartOverview(null);
-        return;
-    }
-
-    summaryNode.innerHTML = `
-        <div class="cart-banner-row">
-            <span class="pill-chip">${summary.total_items} dòng sản phẩm</span>
-            <span class="pill-chip">Tổng SL: ${summary.total_quantity}</span>
-        </div>
-        <strong>${formatCurrency(summary.total_amount)}</strong>
-        <span>Kiểm tra số lượng từng mặt hàng trước khi đặt mua.</span>
-    `;
-
-    itemsNode.innerHTML = summary.items.map((item) => `
-        <article class="cart-item">
-            <div class="cart-item-title">
-                <div>
-                    <strong>${item.product_name}</strong>
-                    <p class="cart-item-subtitle">Đơn giá ${formatCurrency(item.unit_price)}</p>
-                </div>
-                <strong>${formatCurrency(item.subtotal)}</strong>
-            </div>
-            <div class="cart-item-meta">
-                <span class="pill-chip">${item.product_type}</span>
-                <span class="pill-chip">ID ${item.product_id}</span>
-                <span class="pill-chip">SL ${item.quantity}</span>
-            </div>
-            <div class="cart-item-actions">
-                <input type="number" min="1" value="${item.quantity}" data-cart-qty="${item.id}">
-                <button class="secondary-button small" data-cart-update="${item.id}">Cập nhật</button>
-                <button class="primary-button small danger-button" data-cart-delete="${item.id}">Xóa</button>
-            </div>
-        </article>
-    `).join("");
-    updateCartOverview(summary);
-
-    itemsNode.querySelectorAll("[data-cart-update]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const id = button.dataset.cartUpdate;
-            const quantity = Number(itemsNode.querySelector(`[data-cart-qty="${id}"]`).value || 1);
-            try {
-                await apiFetch(`/api/customers/cart/items/${id}/`, {
-                    method: "PUT",
-                    headers: { Authorization: `Bearer ${state.customer.token}` },
-                    body: JSON.stringify({ quantity }),
-                });
-                toast("Đã cập nhật giỏ hàng");
-                await fetchCartSummary();
-            } catch (error) {
-                toast(error.message, "error");
-            }
-        });
-    });
-
-    itemsNode.querySelectorAll("[data-cart-delete]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const id = button.dataset.cartDelete;
-            try {
-                await apiFetch(`/api/customers/cart/items/${id}/`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${state.customer.token}` },
-                });
-                toast("Đã xóa khỏi giỏ hàng");
-                await fetchCartSummary();
-            } catch (error) {
-                toast(error.message, "error");
-            }
-        });
-    });
-}
-
-function updateCartOverview(summary) {
-    setNodeText("#cart-overview-lines", String(summary?.total_items || 0));
-    setNodeText("#cart-overview-quantity", String(summary?.total_quantity || 0));
-    setNodeText("#cart-overview-total", formatCurrency(summary?.total_amount || 0));
-}
-
-async function ensureCart() {
-    if (!state.customer.token) {
-        throw new Error("Vui lòng đăng nhập khách hàng trước.");
-    }
-    await apiFetch("/api/customers/cart/", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${state.customer.token}` },
-    });
-}
-
-async function fetchCartSummary() {
-    if (!state.customer.token) {
-        state.customer.cart = null;
-        renderCart(null);
-        renderCartView(null);
-        return;
-    }
-    try {
-        await ensureCart();
-        state.customer.cart = await apiFetch("/api/customers/cart/summary/", {
-            headers: { Authorization: `Bearer ${state.customer.token}` },
-        });
-        renderCart(state.customer.cart);
-        renderCartView(state.customer.cart);
-    } catch (error) {
-        toast(error.message, "error");
-    }
-}
-
-function renderCartView(summary) {
-    const itemsNode = $("#cart-view-items");
-    const summaryNode = $("#cart-view-summary");
-    updateCartOverview(summary);
-
-    if (!summary || !summary.items?.length) {
-        itemsNode.innerHTML = `<div class="empty-state">Giỏ hàng đang trống.</div>`;
-        summaryNode.innerHTML = `
-            <div style="padding:12px; background:var(--surface-soft); border-radius:12px;">
-                <p class="section-kicker">Tóm tắt</p>
-                <p>Chưa có sản phẩm</p>
-            </div>
-        `;
-        return;
-    }
-
-    itemsNode.innerHTML = summary.items.map((item) => `
-        <article class="cart-item">
-            <div class="cart-item-title">
-                <div>
-                    <strong>${item.product_name}</strong>
-                    <p class="cart-item-subtitle">Đơn giá ${formatCurrency(item.unit_price)}</p>
-                </div>
-                <strong>${formatCurrency(item.subtotal)}</strong>
-            </div>
-            <div class="cart-item-meta">
-                <span class="pill-chip">${item.product_type}</span>
-                <span class="pill-chip">ID ${item.product_id}</span>
-            </div>
-            <div class="cart-item-actions">
-                <input type="number" min="1" max="999" value="${item.quantity}" data-qty-for="${item.id}">
-                <button class="secondary-button small" data-update-id="${item.id}">Cập nhật</button>
-                <button class="danger-button small" data-delete-id="${item.id}">Xóa</button>
-            </div>
-        </article>
-    `).join("");
-
-    summaryNode.innerHTML = `
-        <div style="display:grid;gap:12px;">
-            <div>
-                <span class="section-kicker">Tổng cộng</span>
-                <strong style="font-size:1.4rem;color:var(--brand);">${formatCurrency(summary.total_amount)}</strong>
-            </div>
-            <div style="display:grid;gap:8px;font-size:0.9rem;">
-                <div style="display:flex;justify-content:space-between;">
-                    <span>Số mặt hàng:</span>
-                    <strong>${summary.total_items} dòng</strong>
-                </div>
-                <div style="display:flex;justify-content:space-between;">
-                    <span>Tổng số lượng:</span>
-                    <strong>${summary.total_quantity}</strong>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Setup update/delete actions
-    itemsNode.querySelectorAll("[data-update-id]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const itemId = Number(button.dataset.updateId);
-            const quantity = Number(itemsNode.querySelector(`[data-qty-for="${itemId}"]`).value || 1);
-            try {
-                await apiFetch(`/api/customers/cart/items/${itemId}/`, {
-                    method: "PATCH",
-                    headers: { Authorization: `Bearer ${state.customer.token}` },
-                    body: JSON.stringify({ quantity }),
-                });
-                toast("Cập nhật giỏ hàng thành công");
-                await fetchCartSummary();
-            } catch (error) {
-                toast(error.message, "error");
-            }
-        });
-    });
-
-    itemsNode.querySelectorAll("[data-delete-id]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const itemId = Number(button.dataset.deleteId);
-            try {
-                await apiFetch(`/api/customers/cart/items/${itemId}/`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${state.customer.token}` },
-                });
-                toast("Xóa sản phẩm khỏi giỏ hàng");
-                await fetchCartSummary();
-            } catch (error) {
-                toast(error.message, "error");
-            }
-        });
-    });
-}
-
-function showCatalogSkeleton() {
-    $("#catalog-skeleton").innerHTML = skeletonTemplate();
-    $("#catalog-skeleton").classList.remove("hidden");
-    $("#customer-product-grid").classList.add("hidden");
-}
-
-function hideCatalogSkeleton() {
-    $("#catalog-skeleton").classList.add("hidden");
-    $("#customer-product-grid").classList.remove("hidden");
-}
-
-async function fetchCustomerProducts(mode = "list") {
-    if (!state.customer.token) {
-        $("#customer-product-grid").innerHTML = `<div class="empty-state">Đăng nhập khách hàng để xem danh sách sản phẩm.</div>`;
-        hideCatalogSkeleton();
-        return;
-    }
-
-    showCatalogSkeleton();
-    const params = new URLSearchParams();
+async function loadCustomerProducts(isSearch = false) {
+    if (!state.customer.token) return;
+    const searchParams = new URLSearchParams();
     const form = $("#customer-search-form");
-    if (mode === "search") {
+    if (form && isSearch) {
         ["q", "brand", "min_price", "max_price"].forEach((field) => {
             const value = form.elements[field].value.trim();
-            if (value) params.set(field, value);
+            if (value) searchParams.set(field, value);
         });
     }
 
-    const endpoint = mode === "search"
-        ? `/api/customers/${state.customer.activeType}s/search/?${params.toString()}`
-        : `/api/customers/${state.customer.activeType}s/`;
+    const endpoint = isSearch
+        ? `/api/customers/${state.customer.type}s/search/?${searchParams.toString()}`
+        : `/api/customers/${state.customer.type}s/`;
 
-    try {
-        state.customer.products = await apiFetch(endpoint, {
-            headers: { Authorization: `Bearer ${state.customer.token}` },
-        });
-        hideCatalogSkeleton();
-        renderCatalog(state.customer.products);
-    } catch (error) {
-        hideCatalogSkeleton();
-        toast(error.message, "error");
-    }
+    state.customer.products = await api(endpoint, {
+        headers: requestHeaders(state.customer.token),
+    });
+    renderCustomerProducts();
 }
 
-function setupRouter() {
-    window.addEventListener("hashchange", setRoute);
-    setRoute();
-}
+function renderCustomerCart() {
+    renderCustomerMiniCart();
 
-function setupTabs() {
-    $all("[data-staff-tab]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            state.staff.activeType = button.dataset.staffTab;
-            $all("[data-staff-tab]").forEach((node) => node.classList.toggle("active", node === button));
-            setNodeText("#staff-active-category", state.staff.activeType === "laptop" ? "Laptop" : "Điện thoại");
-            resetStaffForm();
-            if (state.staff.token) await fetchStaffOverview();
-        });
-    });
+    const cart = state.customer.cart;
+    $("#cart-items-heading").textContent = `${cart?.total_quantity || 0} san pham`;
+    $("#cart-view-summary").innerHTML =
+        cart && cart.items?.length
+            ? `
+                <p>Tong dong san pham: <strong>${cart.total_items}</strong></p>
+                <p>Tong so luong: <strong>${cart.total_quantity}</strong></p>
+                <p>Tong tam tinh: <strong>${money(cart.total_amount)}</strong></p>
+            `
+            : `<div class="empty-state">Gio hang dang trong.</div>`;
 
-    $all("[data-customer-type]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            state.customer.activeType = button.dataset.customerType;
-            $all("[data-customer-type]").forEach((node) => node.classList.toggle("active", node === button));
-            setNodeText("#customer-active-category", state.customer.activeType === "laptop" ? "Laptop" : "Điện thoại");
-            await fetchCustomerProducts();
-        });
-    });
-}
+    const itemsContainer = $("#cart-view-items");
+    itemsContainer.innerHTML =
+        cart && cart.items?.length
+            ? cart.items
+                  .map(
+                      (item) => `
+                        <article class="cart-item">
+                            <div class="cart-item-main">
+                                <div>
+                                    <strong>${item.product_name}</strong>
+                                    <p>${item.product_type} | ID ${item.product_id}</p>
+                                </div>
+                                <strong>${money(item.subtotal)}</strong>
+                            </div>
+                            <div class="cart-item-actions">
+                                <input type="number" min="0" value="${item.quantity}" data-item-qty="${item.id}">
+                                <button class="secondary-button small" data-item-update="${item.id}" type="button">Cap nhat</button>
+                                <button class="danger-button small" data-item-delete="${item.id}" type="button">Xoa</button>
+                            </div>
+                        </article>
+                    `
+                  )
+                  .join("")
+            : `<div class="empty-state">Gio hang dang trong.</div>`;
 
-function setupUIActions() {
-    $("#mini-cart-button").addEventListener("click", () => {
-        window.location.hash = "#/cart";
-    });
-
-    $("#cart-checkout-btn").addEventListener("click", () => {
-        toast("Tính năng thanh toán đang được phát triển", "info");
-    });
-
-    $("#product-modal-close").addEventListener("click", closeProductModal);
-    $("#product-modal").addEventListener("click", (event) => {
-        if (event.target.id === "product-modal") closeProductModal();
-    });
-}
-
-function setupForms() {
-    $("#staff-login-form").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        try {
-            console.log("[Login] Staff attempting login:", form.elements.username.value);
-            const data = await apiFetch("/api/staff/login/", {
-                method: "POST",
-                body: JSON.stringify({
-                    username: form.elements.username.value,
-                    password: form.elements.password.value,
-                }),
-            });
-            console.log("[Login] Staff response data:", data);
-            
-            if (!data || !data.access) {
-                throw new Error("Phản hồi đăng nhập không hợp lệ: Thiếu access token");
+    itemsContainer.querySelectorAll("[data-item-update]").forEach((button) => {
+        button.onclick = async () => {
+            const quantity = Number(itemsContainer.querySelector(`[data-item-qty="${button.dataset.itemUpdate}"]`).value || 0);
+            try {
+                await api(`/api/customers/cart/items/${button.dataset.itemUpdate}/`, {
+                    method: "PATCH",
+                    headers: requestHeaders(state.customer.token, true),
+                    body: JSON.stringify({ quantity }),
+                });
+                toast("Da cap nhat gio hang");
+                await loadCustomerCart();
+            } catch (error) {
+                toast(error.message, true);
             }
-            
-            clearCustomerSession();
-            state.staff.token = data.access;
-            state.staff.profile = data.staff;
-            console.log("[Login] Staff token set:", !!state.staff.token, "Profile:", state.staff.profile?.username);
-            
-            persistState();
-            updateCustomerStatus();
-            updateStaffStatus();
-            resetStaffForm();
-            window.location.hash = "#/admin";
-            toast("Đăng nhập nhân viên thành công");
-            await safeLoadAfterLogin(fetchStaffOverview, "Đăng nhập thành công nhưng không tải được danh sách sản phẩm");
+        };
+    });
+
+    itemsContainer.querySelectorAll("[data-item-delete]").forEach((button) => {
+        button.onclick = async () => {
+            try {
+                await api(`/api/customers/cart/items/${button.dataset.itemDelete}/`, {
+                    method: "DELETE",
+                    headers: requestHeaders(state.customer.token),
+                });
+                toast("Da xoa san pham khoi gio");
+                await loadCustomerCart();
+            } catch (error) {
+                toast(error.message, true);
+            }
+        };
+    });
+
+    renderCheckoutSummary();
+}
+
+function renderCheckoutSummary() {
+    const cart = state.customer.cart;
+    $("#checkout-items").innerHTML =
+        cart && cart.items?.length
+            ? cart.items
+                  .map(
+                      (item) => `
+                        <article class="cart-item compact-cart-item">
+                            <div class="cart-item-main">
+                                <div>
+                                    <strong>${item.product_name}</strong>
+                                    <p>${item.product_type} | SL ${item.quantity}</p>
+                                </div>
+                                <strong>${money(item.subtotal)}</strong>
+                            </div>
+                        </article>
+                    `
+                  )
+                  .join("")
+            : `<div class="empty-state">Gio hang trong. Hay quay lai cua hang.</div>`;
+
+    $("#checkout-total-box").innerHTML =
+        cart && cart.items?.length
+            ? `
+                <p>Tong dong san pham: <strong>${cart.total_items}</strong></p>
+                <p>Tong so luong: <strong>${cart.total_quantity}</strong></p>
+                <p>Tong thanh toan: <strong>${money(cart.total_amount)}</strong></p>
+            `
+            : `<p>Chua co du lieu checkout.</p>`;
+}
+
+async function loadCustomerCart() {
+    if (!state.customer.token) return;
+    await api("/api/customers/cart/", {
+        method: "POST",
+        headers: requestHeaders(state.customer.token),
+    });
+    state.customer.cart = await api("/api/customers/cart/summary/", {
+        headers: requestHeaders(state.customer.token),
+    });
+    renderCustomerCart();
+}
+
+function renderInvoiceDetail() {
+    const invoice = state.customer.selectedInvoice;
+    const container = $("#invoice-detail");
+    if (!invoice) {
+        container.innerHTML = `<div class="empty-state">Chon mot hoa don de xem chi tiet.</div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="invoice-sheet">
+            <div class="invoice-head">
+                <div>
+                    <p class="panel-kicker">Invoice</p>
+                    <h3>${invoice.invoice_code}</h3>
+                </div>
+                <span class="status-pill">${invoice.status}</span>
+            </div>
+            <p>Ngay tao: ${formatDate(invoice.created_at)}</p>
+            <p>Ghi chu: ${invoice.note || "Khong co"}</p>
+            <div class="invoice-items">
+                ${invoice.items
+                    .map(
+                        (item) => `
+                            <div class="invoice-line">
+                                <span>${item.product_name} x ${item.quantity}</span>
+                                <strong>${money(item.subtotal)}</strong>
+                            </div>
+                        `
+                    )
+                    .join("")}
+            </div>
+            <div class="invoice-total">
+                Tong tien: <strong>${money(invoice.total_amount)}</strong>
+            </div>
+            ${invoice.status === "PENDING" ? '<button class="danger-button" id="cancel-invoice-btn" type="button">Huy hoa don</button>' : ""}
+        </div>
+    `;
+
+    if (invoice.status === "PENDING") {
+        $("#cancel-invoice-btn").onclick = async () => {
+            try {
+                state.customer.selectedInvoice = await api(`/api/customers/invoices/${invoice.id}/cancel/`, {
+                    method: "POST",
+                    headers: requestHeaders(state.customer.token),
+                });
+                toast("Da huy hoa don");
+                await loadCustomerInvoices();
+            } catch (error) {
+                toast(error.message, true);
+            }
+        };
+    }
+}
+
+function renderInvoices() {
+    const invoices = state.customer.invoices || [];
+    $("#invoice-count").textContent = `${invoices.length} hoa don`;
+    $("#invoice-list").innerHTML = invoices.length
+        ? invoices
+              .map(
+                  (invoice) => `
+                    <article class="invoice-card ${state.customer.selectedInvoice?.id === invoice.id ? "active" : ""}" data-invoice-id="${invoice.id}">
+                        <strong>${invoice.invoice_code}</strong>
+                        <p>${formatDate(invoice.created_at)}</p>
+                        <p>Trang thai: ${invoice.status}</p>
+                        <p>Tong tien: ${money(invoice.total_amount)}</p>
+                    </article>
+                `
+              )
+              .join("")
+        : `<div class="empty-state">Chua co hoa don nao.</div>`;
+
+    $("#invoice-list").querySelectorAll("[data-invoice-id]").forEach((button) => {
+        button.onclick = async () => {
+            try {
+                state.customer.selectedInvoice = await api(`/api/customers/invoices/${button.dataset.invoiceId}/`, {
+                    headers: requestHeaders(state.customer.token),
+                });
+                renderInvoices();
+            } catch (error) {
+                toast(error.message, true);
+            }
+        };
+    });
+
+    renderInvoiceDetail();
+}
+
+async function loadCustomerInvoices() {
+    if (!state.customer.token) return;
+    state.customer.invoices = await api("/api/customers/invoices/", {
+        headers: requestHeaders(state.customer.token),
+    });
+    state.customer.selectedInvoice =
+        state.customer.invoices.find((invoice) => invoice.id === state.customer.selectedInvoice?.id) ||
+        state.customer.invoices[0] ||
+        null;
+    renderInvoices();
+}
+
+async function handleCustomerLogin(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+        const result = await api("/api/customers/login/", {
+            method: "POST",
+            headers: requestHeaders("", true),
+            body: JSON.stringify({
+                username: form.elements.username.value,
+                password: form.elements.password.value,
+            }),
+        });
+        clearStaffSession();
+        state.customer.token = result.access;
+        state.customer.profile = result.customer;
+        persistSession();
+        toast("Dang nhap customer thanh cong");
+        location.hash = "#/shop";
+    } catch (error) {
+        toast(error.message, true);
+    }
+}
+
+async function handleStaffLogin(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+        const result = await api("/api/staff/login/", {
+            method: "POST",
+            headers: requestHeaders("", true),
+            body: JSON.stringify({
+                username: form.elements.username.value,
+                password: form.elements.password.value,
+            }),
+        });
+        clearCustomerSession();
+        state.staff.token = result.access;
+        state.staff.profile = result.staff;
+        persistSession();
+        toast("Dang nhap staff thanh cong");
+        location.hash = "#/admin";
+    } catch (error) {
+        toast(error.message, true);
+    }
+}
+
+function bindStaticEvents() {
+    window.addEventListener("hashchange", handleRouteChange);
+
+    $("#customer-login-form").addEventListener("submit", handleCustomerLogin);
+    $("#staff-login-form").addEventListener("submit", handleStaffLogin);
+
+    $("#customer-search-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            await loadCustomerProducts(true);
         } catch (error) {
-            console.error("[Login Error] Staff:", error.message);
-            toast(error.message, "error");
+            toast(error.message, true);
         }
     });
+
+    $("#customer-search-reset").onclick = async () => {
+        $("#customer-search-form").reset();
+        try {
+            await loadCustomerProducts();
+        } catch (error) {
+            toast(error.message, true);
+        }
+    };
+
+    $("#checkout-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            state.customer.selectedInvoice = await api("/api/customers/checkout/", {
+                method: "POST",
+                headers: requestHeaders(state.customer.token, true),
+                body: JSON.stringify({ note: event.currentTarget.elements.note.value }),
+            });
+            toast("Checkout thanh cong");
+            await Promise.all([loadCustomerCart(), loadCustomerInvoices()]);
+            location.hash = "#/invoices";
+        } catch (error) {
+            toast(error.message, true);
+        }
+    });
+
+    $("#customer-logout").onclick = () => {
+        clearCustomerSession();
+        persistSession();
+        toast("Da dang xuat customer");
+        location.hash = "#/customer-login";
+    };
+
+    $("#staff-logout").onclick = () => {
+        clearStaffSession();
+        persistSession();
+        toast("Da dang xuat staff");
+        location.hash = "#/staff-login";
+    };
+
+    $("#staff-form-reset").onclick = () => fillStaffForm();
 
     $("#staff-product-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
-        const type = form.elements.type.value;
-        const id = form.elements.id.value;
         const payload = {};
-        for (const [name] of productConfigs[type]) {
-            payload[name] = form.elements[name].value;
-        }
-        payload.price = Number(payload.price);
-        payload.stock = Number(payload.stock);
+        staffFields[state.staff.type].forEach(([name, , kind]) => {
+            payload[name] = kind === "number" ? Number(form.elements[name].value || 0) : form.elements[name].value;
+        });
 
+        const id = form.elements.id.value;
         try {
-            await apiFetch(`/api/staff/${type}s/${id ? `${id}/` : ""}`, {
+            await api(`/api/staff/${state.staff.type}s/${id ? `${id}/` : ""}`, {
                 method: id ? "PUT" : "POST",
-                headers: { Authorization: `Bearer ${state.staff.token}` },
+                headers: requestHeaders(state.staff.token, true),
                 body: JSON.stringify(payload),
             });
-            toast(id ? "Đã cập nhật sản phẩm" : "Đã thêm sản phẩm mới");
-            resetStaffForm();
-            await fetchStaffOverview();
+            toast(id ? "Da cap nhat san pham" : "Da them san pham");
+            fillStaffForm();
+            await loadStaffDashboard();
         } catch (error) {
-            toast(error.message, "error");
+            toast(error.message, true);
         }
     });
 
-    $("#staff-form-reset").addEventListener("click", resetStaffForm);
-
-    $("#customer-login-form").addEventListener("submit", async (event) => {
+    $("#staff-import-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
         try {
-            console.log("[Login] Customer attempting login:", form.elements.username.value);
-            const data = await apiFetch("/api/customers/login/", {
+            await api("/api/staff/imports/", {
                 method: "POST",
+                headers: requestHeaders(state.staff.token, true),
                 body: JSON.stringify({
-                    username: form.elements.username.value,
-                    password: form.elements.password.value,
+                    product_type: form.elements.product_type.value,
+                    product_id: Number(form.elements.product_id.value),
+                    quantity: Number(form.elements.quantity.value),
+                    note: form.elements.note.value,
                 }),
             });
-            console.log("[Login] Customer response data received:", data);
-            
-            if (!data || !data.access) {
-                console.error("[Login] Missing token - data:", data);
-                throw new Error("Phản hồi đăng nhập không hợp lệ: Thiếu access token");
-            }
-            
-            clearStaffSession();
-            state.customer.token = data.access;
-            state.customer.profile = data.customer;
-            console.log("[Login] Customer token set:", !!state.customer.token, "Profile:", state.customer.profile?.username);
-            
-            persistState();
-            updateStaffStatus();
-            updateCustomerStatus();
-            window.location.hash = "#/shop";
-            console.log("[Login] Redirecting to shop view");
-            toast("Đăng nhập khách hàng thành công");
-            await safeLoadAfterLogin(fetchCustomerProducts, "Đăng nhập thành công nhưng không tải được danh sách sản phẩm");
-            await safeLoadAfterLogin(fetchCartSummary, "Đăng nhập thành công nhưng không tải được giỏ hàng");
-        } catch (error) {
-            console.error("[Login Error] Customer:", error.message, error);
-            toast(error.message, "error");
-        }
-    });
-
-    $("#customer-register-form").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        try {
-            await apiFetch("/api/customers/register/", {
-                method: "POST",
-                body: JSON.stringify({
-                    full_name: form.elements.full_name.value,
-                    username: form.elements.username.value,
-                    email: form.elements.email.value,
-                    phone: form.elements.phone.value,
-                    password: form.elements.password.value,
-                }),
-            });
+            toast("Nhap hang thanh cong");
             form.reset();
-            toast("Đã tạo tài khoản thành công");
+            form.elements.product_type.value = "LAPTOP";
+            await loadStaffDashboard();
         } catch (error) {
-            toast(error.message, "error");
+            toast(error.message, true);
         }
     });
 
-    $("#customer-search-form").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await fetchCustomerProducts("search");
+    $$("[data-customer-type]").forEach((button) => {
+        button.onclick = async () => {
+            state.customer.type = button.dataset.customerType;
+            $$("[data-customer-type]").forEach((item) => item.classList.toggle("active", item === button));
+            try {
+                await loadCustomerProducts();
+            } catch (error) {
+                toast(error.message, true);
+            }
+        };
     });
 
-    $("#customer-search-reset").addEventListener("click", async () => {
-        $("#customer-search-form").reset();
-        await fetchCustomerProducts();
+    $$("[data-staff-type]").forEach((button) => {
+        button.onclick = () => {
+            state.staff.type = button.dataset.staffType;
+            $$("[data-staff-type]").forEach((item) => item.classList.toggle("active", item === button));
+            renderStaffDashboard();
+        };
     });
 
-    $("#staff-logout").addEventListener("click", () => {
-        clearStaffSession();
-        persistState();
-        updateStaffStatus();
-        setNodeText("#staff-overview-count", "0 sản phẩm");
-        setNodeText("#staff-summary-total", "0 sản phẩm");
-        setNodeText("#staff-visible-count", "0 mục");
-        $("#staff-product-table").innerHTML = `<tr><td colspan="6"><div class="empty-state">Đăng nhập nhân viên để quản lý dữ liệu.</div></td></tr>`;
-        window.location.hash = "#/";
-        toast("Đã đăng xuất nhân viên");
-    });
-
-    $("#customer-logout").addEventListener("click", () => {
-        clearCustomerSession();
-        persistState();
-        updateCustomerStatus();
-        renderCart(null);
-        $("#customer-product-grid").innerHTML = `<div class="empty-state">Đăng nhập khách hàng để xem danh sách sản phẩm.</div>`;
-        setNodeText("#customer-product-count", "0");
-        setNodeText("#customer-toolbar-result", "0 kết quả");
-        setNodeText("#customer-cart-items-count", "0 sản phẩm");
-        window.location.hash = "#/";
-        toast("Đã đăng xuất khách hàng");
-    });
+    $("#product-modal-close").onclick = () => $("#product-modal").classList.add("hidden");
+    $("#product-modal").onclick = (event) => {
+        if (event.target.id === "product-modal") {
+            $("#product-modal").classList.add("hidden");
+        }
+    };
 }
 
-async function bootstrap() {
-    buildStaffFields(state.staff.activeType);
-    setupRouter();
-    setupTabs();
-    setupUIActions();
-    setupForms();
-    updateCustomerStatus();
-    updateStaffStatus();
-    updateMiniCartState();
-
-    if (state.staff.token) {
-        try {
-            await fetchStaffOverview();
-        } catch (error) {
-            toast(error.message, "error");
+async function loadRouteData(route) {
+    if (customerRoutes.has(route) && state.customer.token) {
+        if (route === "#/shop") {
+            await Promise.all([loadCustomerProducts(), loadCustomerCart()]);
         }
-    } else {
-        $("#staff-product-table").innerHTML = `<tr><td colspan="6"><div class="empty-state">Đăng nhập nhân viên để quản lý dữ liệu.</div></td></tr>`;
+        if (route === "#/cart" || route === "#/checkout") {
+            await loadCustomerCart();
+        }
+        if (route === "#/invoices") {
+            await Promise.all([loadCustomerCart(), loadCustomerInvoices()]);
+        }
     }
 
-    if (state.customer.token) {
-        try {
-            await fetchCustomerProducts();
-            await fetchCartSummary();
-        } catch (error) {
-            toast(error.message, "error");
-        }
-    } else {
-        $("#customer-product-grid").innerHTML = `<div class="empty-state">Đăng nhập khách hàng để xem danh sách sản phẩm.</div>`;
-        renderCart(null);
+    if (staffRoutes.has(route) && state.staff.token) {
+        await loadStaffDashboard();
     }
 }
 
-bootstrap();
+async function handleRouteChange() {
+    const desiredRoute = guardRoute(location.hash || "#/");
+    if (desiredRoute !== (location.hash || "#/")) {
+        location.hash = desiredRoute;
+        return;
+    }
+
+    state.route = desiredRoute;
+    setBodyTheme(desiredRoute);
+    showRoute(desiredRoute);
+    updateHeaderStatus();
+
+    try {
+        await loadRouteData(desiredRoute);
+    } catch (error) {
+        toast(error.message, true);
+    }
+}
+
+async function boot() {
+    buildStaffForm();
+    fillStaffForm();
+    bindStaticEvents();
+    await handleRouteChange();
+}
+
+boot();

@@ -1,9 +1,10 @@
-from django.db.models import Q
-from rest_framework import generics
+from django.db.models import F, Q
+from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Laptop
-from .serializers import LaptopSerializer
+from .models import LaptopProduct
+from .serializers import LaptopProductSerializer, StockAdjustmentSerializer
 
 
 def api_response(*, data=None, message="Success", success=True, status_code=200):
@@ -18,8 +19,8 @@ def api_response(*, data=None, message="Success", success=True, status_code=200)
 
 
 class LaptopQuerySetMixin:
-    queryset = Laptop.objects.all()
-    serializer_class = LaptopSerializer
+    queryset = LaptopProduct.objects.all()
+    serializer_class = LaptopProductSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -27,6 +28,7 @@ class LaptopQuerySetMixin:
         keyword = self.request.query_params.get("q")
         min_price = self.request.query_params.get("min_price")
         max_price = self.request.query_params.get("max_price")
+        status_filter = self.request.query_params.get("status")
 
         if keyword:
             queryset = queryset.filter(
@@ -40,6 +42,8 @@ class LaptopQuerySetMixin:
             queryset = queryset.filter(price__gte=min_price)
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
         return queryset
 
 
@@ -55,7 +59,7 @@ class LaptopListCreateView(LaptopQuerySetMixin, generics.ListCreateAPIView):
         return api_response(
             data=serializer.data,
             message="Laptop created successfully",
-            status_code=201,
+            status_code=status.HTTP_201_CREATED,
         )
 
 
@@ -66,9 +70,7 @@ class LaptopDetailView(LaptopQuerySetMixin, generics.RetrieveUpdateDestroyAPIVie
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
-        serializer = self.get_serializer(
-            self.get_object(), data=request.data, partial=partial
-        )
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return api_response(data=serializer.data, message="Laptop updated successfully")
@@ -80,3 +82,30 @@ class LaptopDetailView(LaptopQuerySetMixin, generics.RetrieveUpdateDestroyAPIVie
 
 class LaptopSearchView(LaptopListCreateView):
     pass
+
+
+class LaptopStockAdjustView(APIView):
+    def post(self, request, pk):
+        serializer = StockAdjustmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product = LaptopProduct.objects.filter(pk=pk).first()
+        if not product:
+            return api_response(
+                success=False,
+                message="Laptop product not found.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        quantity_delta = serializer.validated_data["quantity_delta"]
+        if product.stock + quantity_delta < 0:
+            return api_response(
+                success=False,
+                message="Stock adjustment would make inventory negative.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product.stock = F("stock") + quantity_delta
+        product.save(update_fields=["stock"])
+        product.refresh_from_db()
+        return api_response(data=LaptopProductSerializer(product).data, message="Laptop stock updated successfully")

@@ -1,0 +1,542 @@
+@startuml StaffLogin
+title Staff Login
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+database "MySQL Staff DB" as StaffDB
+
+Staff -> Gateway: POST /api/staff/login/\nusername, password
+Gateway -> StaffService: POST /staff/login/
+StaffService -> StaffService: Validate request payload
+StaffService -> StaffDB: Find staff by username
+StaffDB --> StaffService: Staff row + password hash
+StaffService -> StaffService: Verify password\nGenerate JWT refresh/access
+StaffService --> Gateway: success + access + refresh + staff profile
+Gateway --> Staff: Login response
+
+alt Invalid username or password
+    StaffService --> Gateway: 400 login failed
+    Gateway --> Staff: Show authentication error
+end
+@enduml
+
+@startuml StaffDashboard
+title Staff Dashboard Load
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "MySQL Staff DB" as StaffDB
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Staff -> Gateway: GET /api/staff/dashboard/\nAuthorization: Bearer JWT
+Gateway -> StaffService: GET /staff/dashboard/
+StaffService -> StaffService: Validate JWT + role=STAFF
+par Load laptops
+    StaffService -> LaptopService: GET /laptops/
+    LaptopService -> LaptopDB: Query active/all laptop products
+    LaptopDB --> LaptopService: Laptop rows
+    LaptopService --> StaffService: Laptop list
+and Load clothes
+    StaffService -> ClothesService: GET /clothes/
+    ClothesService -> ClothesDB: Query active/all clothes products
+    ClothesDB --> ClothesService: Clothes rows
+    ClothesService --> StaffService: Clothes list
+and Load recent imports
+    StaffService -> StaffDB: Query InventoryImportHistory
+    StaffDB --> StaffService: Recent import rows
+end
+StaffService -> StaffService: Calculate totals\nBuild dashboard payload
+StaffService --> Gateway: Dashboard data
+Gateway --> Staff: Render staff dashboard
+
+alt A product service is unavailable
+    LaptopService --> StaffService: 5xx / timeout
+    StaffService --> Gateway: 502 upstream service error
+    Gateway --> Staff: Show dashboard error state
+end
+@enduml
+
+@startuml StaffCreateProduct
+title Staff Create Product
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Staff -> Gateway: POST /api/staff/{type}s/\nAuthorization + product payload
+Gateway -> StaffService: POST /staff/{type}s/
+StaffService -> StaffService: Validate JWT + role=STAFF
+StaffService -> StaffService: Validate payload\nprice >= 0, stock >= 0
+
+alt type = laptop
+    StaffService -> LaptopService: POST /laptops/
+    LaptopService -> LaptopService: Validate serializer
+    LaptopService -> LaptopDB: Insert LaptopProduct
+    LaptopDB --> LaptopService: New laptop row
+    LaptopService --> StaffService: Created laptop payload
+else type = clothes
+    StaffService -> ClothesService: POST /clothes/
+    ClothesService -> ClothesService: Validate serializer
+    ClothesService -> ClothesDB: Insert ClothesProduct
+    ClothesDB --> ClothesService: New clothes row
+    ClothesService --> StaffService: Created clothes payload
+end
+
+StaffService --> Gateway: 201 product created
+Gateway --> Staff: Refresh product table
+
+alt Invalid data
+    StaffService --> Gateway: 400 validation error
+    Gateway --> Staff: Show field errors
+end
+@enduml
+
+@startuml StaffUpdateProduct
+title Staff Update Product
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Staff -> Gateway: PUT /api/staff/{type}s/{product_id}/
+Gateway -> StaffService: PUT /staff/{type}s/{product_id}/
+StaffService -> StaffService: Validate JWT + role=STAFF
+StaffService -> StaffService: Validate payload
+
+alt type = laptop
+    StaffService -> LaptopService: PUT /laptops/{id}/
+    LaptopService -> LaptopDB: Find + update LaptopProduct
+    LaptopDB --> LaptopService: Updated laptop row
+    LaptopService --> StaffService: Updated payload
+else type = clothes
+    StaffService -> ClothesService: PUT /clothes/{id}/
+    ClothesService -> ClothesDB: Find + update ClothesProduct
+    ClothesDB --> ClothesService: Updated clothes row
+    ClothesService --> StaffService: Updated payload
+end
+
+StaffService --> Gateway: Product updated
+Gateway --> Staff: Show success message
+
+alt Product not found
+    LaptopService --> StaffService: 404 not found
+    StaffService --> Gateway: 502/404 mapped error
+    Gateway --> Staff: Show missing product error
+end
+@enduml
+
+@startuml StaffDeleteProduct
+title Staff Delete Product
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Staff -> Gateway: DELETE /api/staff/{type}s/{product_id}/
+Gateway -> StaffService: DELETE /staff/{type}s/{product_id}/
+StaffService -> StaffService: Validate JWT + role=STAFF
+
+alt type = laptop
+    StaffService -> LaptopService: DELETE /laptops/{id}/
+    LaptopService -> LaptopDB: Delete LaptopProduct
+    LaptopDB --> LaptopService: Delete result
+    LaptopService --> StaffService: 204 deleted
+else type = clothes
+    StaffService -> ClothesService: DELETE /clothes/{id}/
+    ClothesService -> ClothesDB: Delete ClothesProduct
+    ClothesDB --> ClothesService: Delete result
+    ClothesService --> StaffService: 204 deleted
+end
+
+StaffService --> Gateway: Delete success
+Gateway --> Staff: Remove row from table
+@enduml
+
+@startuml StaffImportStock
+title Staff Import Stock
+
+actor Staff
+participant "API Gateway" as Gateway
+participant "staff-service" as StaffService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "MySQL Staff DB" as StaffDB
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Staff -> Gateway: POST /api/staff/imports/\nproduct_type, product_id, quantity, note
+Gateway -> StaffService: POST /staff/imports/
+StaffService -> StaffService: Validate JWT + role=STAFF
+StaffService -> StaffService: Validate quantity > 0
+
+alt product_type = LAPTOP
+    StaffService -> LaptopService: GET /laptops/{id}/
+    LaptopService -> LaptopDB: Load product
+    LaptopDB --> LaptopService: Current stock
+    LaptopService --> StaffService: Product detail
+    StaffService -> LaptopService: POST /laptops/{id}/stock-adjust/\ndelta = +quantity
+    LaptopService -> LaptopDB: Update stock
+    LaptopDB --> LaptopService: New stock
+    LaptopService --> StaffService: Updated product
+else product_type = CLOTHES
+    StaffService -> ClothesService: GET /clothes/{id}/
+    ClothesService -> ClothesDB: Load product
+    ClothesDB --> ClothesService: Current stock
+    ClothesService --> StaffService: Product detail
+    StaffService -> ClothesService: POST /clothes/{id}/stock-adjust/\ndelta = +quantity
+    ClothesService -> ClothesDB: Update stock
+    ClothesDB --> ClothesService: New stock
+    ClothesService --> StaffService: Updated product
+end
+
+StaffService -> StaffDB: Insert InventoryImportHistory
+StaffDB --> StaffService: Import history row
+StaffService --> Gateway: Import success + updated product + history
+Gateway --> Staff: Show success and refresh dashboard
+@enduml
+
+@startuml CustomerLogin
+title Customer Login
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/login/\nusername, password
+Gateway -> CustomerService: POST /customers/login/
+CustomerService -> CustomerService: Validate payload
+CustomerService -> CustomerDB: Find customer by username
+CustomerDB --> CustomerService: Customer row + password hash
+CustomerService -> CustomerService: Verify password\nGenerate JWT refresh/access
+CustomerService --> Gateway: success + access + refresh + customer profile
+Gateway --> Customer: Login response
+
+alt Invalid credentials
+    CustomerService --> Gateway: 400 login failed
+    Gateway --> Customer: Show authentication error
+end
+@enduml
+
+@startuml CustomerBrowseProducts
+title Customer Browse Product Catalog
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Customer -> Gateway: GET /api/customers/{type}s/\nAuthorization: Bearer JWT
+Gateway -> CustomerService: GET /customers/{type}s/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+
+alt type = laptops
+    CustomerService -> LaptopService: GET /laptops/ or /laptops/search/
+    LaptopService -> LaptopDB: Query products with filters
+    LaptopDB --> LaptopService: Laptop rows
+    LaptopService --> CustomerService: Laptop list
+else type = clothes
+    CustomerService -> ClothesService: GET /clothes/ or /clothes/search/
+    ClothesService -> ClothesDB: Query products with filters
+    ClothesDB --> ClothesService: Clothes rows
+    ClothesService --> CustomerService: Clothes list
+end
+
+CustomerService --> Gateway: Product list payload
+Gateway --> Customer: Render catalog cards
+@enduml
+
+@startuml CustomerEnsureCart
+title Customer Create Or Get Active Cart
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "cart-service" as CartService
+database "PostgreSQL Cart DB" as CartDB
+
+Customer -> Gateway: POST /api/customers/cart/
+Gateway -> CustomerService: POST /customers/cart/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CartService: POST /carts/\ncustomer_id
+CartService -> CartDB: Find active cart by customer_id
+
+alt Active cart exists
+    CartDB --> CartService: Existing cart row
+    CartService --> CustomerService: Cart is ready
+else No active cart
+    CartService -> CartDB: Insert new Cart(status=ACTIVE)
+    CartDB --> CartService: New cart row
+    CartService --> CustomerService: Cart created
+end
+
+CustomerService --> Gateway: Cart payload
+Gateway --> Customer: Cart ready
+@enduml
+
+@startuml CustomerAddItemToCart
+title Customer Add Product To Cart
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "cart-service" as CartService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Cart DB" as CartDB
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Customer -> Gateway: POST /api/customers/cart/items/\nproduct_type, product_id, quantity
+Gateway -> CustomerService: POST /customers/cart/items/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CartService: POST /carts/customer/{customer_id}/items/
+CartService -> CartService: Validate payload\nquantity > 0
+CartService -> CartDB: Find or create active cart
+CartDB --> CartService: Active cart row
+
+alt product_type = LAPTOP
+    CartService -> LaptopService: GET /laptops/{id}/
+    LaptopService -> LaptopDB: Load product detail
+    LaptopDB --> LaptopService: Product row
+    LaptopService --> CartService: name, price, stock
+else product_type = CLOTHES
+    CartService -> ClothesService: GET /clothes/{id}/
+    ClothesService -> ClothesDB: Load product detail
+    ClothesDB --> ClothesService: Product row
+    ClothesService --> CartService: name, price, stock
+end
+
+alt Item already exists in cart
+    CartService -> CartDB: Load existing CartItem
+    CartDB --> CartService: Existing item
+    CartService -> CartService: Increase quantity\nRe-check stock
+    CartService -> CartDB: Update CartItem
+else Item not in cart
+    CartService -> CartDB: Insert CartItem
+end
+
+CartDB --> CartService: Saved cart item
+CartService --> CustomerService: 201 item created
+CustomerService --> Gateway: Add-to-cart success
+Gateway --> Customer: Refresh mini cart / cart summary
+
+alt Requested quantity exceeds stock
+    CartService --> CustomerService: 400 stock error
+    CustomerService --> Gateway: Validation error
+    Gateway --> Customer: Show out-of-stock message
+end
+@enduml
+
+@startuml CustomerUpdateCartItem
+title Customer Update Cart Item Quantity
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "cart-service" as CartService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "PostgreSQL Cart DB" as CartDB
+
+Customer -> Gateway: PATCH /api/customers/cart/items/{item_id}/\nquantity
+Gateway -> CustomerService: PATCH /customers/cart/items/{item_id}/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CartService: PATCH /carts/customer/{customer_id}/items/{item_id}/
+CartService -> CartDB: Find active cart + target CartItem
+CartDB --> CartService: CartItem row
+
+alt quantity = 0
+    CartService -> CartDB: Delete CartItem
+    CartDB --> CartService: Item removed
+    CartService --> CustomerService: Item removed
+else quantity > 0
+    alt CartItem.product_type = LAPTOP
+        CartService -> LaptopService: GET /laptops/{product_id}/
+        LaptopService --> CartService: Current stock + price
+    else CartItem.product_type = CLOTHES
+        CartService -> ClothesService: GET /clothes/{product_id}/
+        ClothesService --> CartService: Current stock + price
+    end
+    CartService -> CartService: Validate requested quantity <= stock
+    CartService -> CartDB: Update CartItem quantity + price snapshot
+    CartDB --> CartService: Updated item
+    CartService --> CustomerService: Item updated
+end
+
+CustomerService --> Gateway: Updated cart result
+Gateway --> Customer: Refresh cart summary
+@enduml
+
+@startuml CustomerDeleteCartItem
+title Customer Delete Cart Item
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "cart-service" as CartService
+database "PostgreSQL Cart DB" as CartDB
+
+Customer -> Gateway: DELETE /api/customers/cart/items/{item_id}/
+Gateway -> CustomerService: DELETE /customers/cart/items/{item_id}/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CartService: DELETE /carts/customer/{customer_id}/items/{item_id}/
+CartService -> CartDB: Find CartItem in active cart
+CartDB --> CartService: CartItem row
+CartService -> CartDB: Delete CartItem
+CartDB --> CartService: Delete result
+CartService --> CustomerService: Item deleted
+CustomerService --> Gateway: Delete success
+Gateway --> Customer: Refresh cart UI
+@enduml
+
+@startuml CustomerCheckout
+title Customer Checkout
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+participant "cart-service" as CartService
+participant "laptop-service" as LaptopService
+participant "clothes-service" as ClothesService
+database "MySQL Customer DB" as CustomerDB
+database "PostgreSQL Cart DB" as CartDB
+database "PostgreSQL Laptop DB" as LaptopDB
+database "PostgreSQL Clothes DB" as ClothesDB
+
+Customer -> Gateway: POST /api/customers/checkout/\nnote
+Gateway -> CustomerService: POST /customers/checkout/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CartService: GET /carts/customer/{customer_id}/summary/
+CartService -> CartDB: Load active cart + items
+CartDB --> CartService: Cart summary
+CartService --> CustomerService: Cart summary payload
+
+alt Cart empty
+    CustomerService --> Gateway: 400 cart is empty
+    Gateway --> Customer: Show checkout error
+else Cart has items
+    loop For each cart item
+        alt product_type = LAPTOP
+            CustomerService -> LaptopService: GET /laptops/{id}/
+            LaptopService -> LaptopDB: Load current stock
+            LaptopDB --> LaptopService: Product row
+            LaptopService --> CustomerService: Product detail
+        else product_type = CLOTHES
+            CustomerService -> ClothesService: GET /clothes/{id}/
+            ClothesService -> ClothesDB: Load current stock
+            ClothesDB --> ClothesService: Product row
+            ClothesService --> CustomerService: Product detail
+        end
+        CustomerService -> CustomerService: Validate stock >= quantity
+    end
+
+    CustomerService -> CustomerDB: BEGIN TRANSACTION
+    CustomerService -> CustomerDB: Insert Invoice(status=PENDING)
+    loop For each validated item
+        CustomerService -> CustomerDB: Insert InvoiceItem
+        alt item is laptop
+            CustomerService -> LaptopService: POST /laptops/{id}/stock-adjust/\ndelta = -quantity
+            LaptopService -> LaptopDB: Reduce stock
+            LaptopDB --> LaptopService: Updated stock
+            LaptopService --> CustomerService: Success
+        else item is clothes
+            CustomerService -> ClothesService: POST /clothes/{id}/stock-adjust/\ndelta = -quantity
+            ClothesService -> ClothesDB: Reduce stock
+            ClothesDB --> ClothesService: Updated stock
+            ClothesService --> CustomerService: Success
+        end
+    end
+    CustomerService -> CustomerDB: Update Invoice(total_amount, status=PAID)
+    CustomerDB --> CustomerService: Commit success
+
+    CustomerService -> CartService: DELETE /carts/customer/{customer_id}/clear/
+    CartService -> CartDB: Delete all active cart items
+    CartDB --> CartService: Cart cleared
+    CartService --> CustomerService: Clear success
+
+    CustomerService --> Gateway: 201 invoice created
+    Gateway --> Customer: Redirect to invoice history
+
+    alt Any stock-adjust call fails after partial success
+        CustomerService -> CustomerService: Reverse completed stock adjustments
+        CustomerService -> CustomerDB: Rollback transaction
+        CustomerService --> Gateway: 502 checkout failed
+        Gateway --> Customer: Show failure message
+    end
+end
+@enduml
+
+@startuml CustomerInvoiceHistory
+title Customer View Invoice List And Detail
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: GET /api/customers/invoices/
+Gateway -> CustomerService: GET /customers/invoices/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CustomerDB: Query Invoice + InvoiceItem by customer
+CustomerDB --> CustomerService: Invoice rows with items
+CustomerService --> Gateway: Invoice list payload
+Gateway --> Customer: Render invoice list
+
+Customer -> Gateway: GET /api/customers/invoices/{invoice_id}/
+Gateway -> CustomerService: GET /customers/invoices/{invoice_id}/
+CustomerService -> CustomerDB: Query invoice by id + customer
+CustomerDB --> CustomerService: Invoice detail
+CustomerService --> Gateway: Invoice detail payload
+Gateway --> Customer: Render invoice sheet
+
+alt Invoice not found
+    CustomerService --> Gateway: 404 invoice not found
+    Gateway --> Customer: Show error state
+end
+@enduml
+
+@startuml CustomerCancelPendingInvoice
+title Customer Cancel Pending Invoice
+
+actor Customer
+participant "API Gateway" as Gateway
+participant "customer-service" as CustomerService
+database "MySQL Customer DB" as CustomerDB
+
+Customer -> Gateway: POST /api/customers/invoices/{invoice_id}/cancel/
+Gateway -> CustomerService: POST /customers/invoices/{invoice_id}/cancel/
+CustomerService -> CustomerService: Validate JWT + role=CUSTOMER
+CustomerService -> CustomerDB: Load invoice by id + customer
+CustomerDB --> CustomerService: Invoice row
+
+alt status = PENDING
+    CustomerService -> CustomerDB: Update status = CANCELLED
+    CustomerDB --> CustomerService: Updated invoice
+    CustomerService --> Gateway: Cancel success
+    Gateway --> Customer: Refresh invoice detail
+else status != PENDING
+    CustomerService --> Gateway: 400 only pending invoices can be cancelled
+    Gateway --> Customer: Show business-rule error
+end
+@enduml
